@@ -32,8 +32,7 @@ EXAMPLES := drop_macswap/drop_macswap			\
 			hashmap_test/hashmap_test			\
 			checksummer/checksummer				\
 			hybrid_macswap/hybrid_macswap		\
-			hybrid_lbfw/hybrid_lbfw				\
-			rate_limiter/rate_limiter
+			hybrid_lbfw/hybrid_lbfw
 EXAMPLES_DIR     := ./examples
 EXAMPLES_TARGETS := $(addprefix $(EXAMPLES_DIR)/,$(EXAMPLES))
 EXAMPLES_USER	 := $(addsuffix _user.o,$(EXAMPLES_TARGETS))
