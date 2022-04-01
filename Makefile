@@ -41,7 +41,6 @@ EXAMPLES_LD      := -L./src/ -lxsknf -L$(LIBXDP_DIR) -l:libxdp.a \
 					-L$(LIBBPF_DIR) -l:libbpf.a -lelf -lz -lpthread -lmnl
 EXAMPLES_COMMON  := $(EXAMPLES_DIR)/common/statistics.o \
 					$(EXAMPLES_DIR)/common/utils.o \
-					$(EXAMPLES_DIR)/common/my_hashmap.o \
 					$(EXAMPLES_DIR)/common/khashmap.o
 
 .PHONY: update_submodules clean $(CLANG) $(LLC)
