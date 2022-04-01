@@ -1,2 +1,0 @@
-#define KEY_SIZE 13
-#define HASHMAP_SIZE 1000000

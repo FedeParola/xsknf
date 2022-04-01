@@ -1,6 +1,5 @@
 #include "firewall.h"
 #include "../common/khashmap.h"
-#include "../common/my_hashmap.h"
 #include "../common/statistics.h"
 #include <arpa/inet.h>
 #include <bpf/bpf.h>
@@ -189,7 +188,6 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
     clock_gettime(CLOCK_MONOTONIC, &tp_before);
 #endif
 	action = khashmap_lookup_elem(&acl, &key);
-	// action = my_hashmap__find(&acl, &key);
 #ifdef MONITOR_LOOKUP_TIME
     clock_gettime(CLOCK_MONOTONIC, &tp_after);
     lookup_time += tp_after.tv_nsec + tp_after.tv_sec * 1000000000

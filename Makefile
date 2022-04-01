@@ -29,7 +29,6 @@ EXAMPLES := drop_macswap/drop_macswap			\
 			firewall/firewall 					\
 			redirect_macswap/redirect_macswap	\
 			load_balancer/load_balancer			\
-			hashmap_test/hashmap_test			\
 			checksummer/checksummer				\
 			hybrid_macswap/hybrid_macswap		\
 			hybrid_lbfw/hybrid_lbfw
