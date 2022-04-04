@@ -23,7 +23,15 @@
 #define SOL_XDP 283
 #endif
 
-#define FRAMES_PER_SOCKET (4 * 1024)
+/*
+ * The number of frames per socket and the size of the frame shall always be a
+ * power of two. This allows to quickly identify the owner (socket) of the frame
+ * when frames are put back into the fill ring.
+ * Every address in the UMEM area can be structured as follows:
+ * | owner-id | frame-id | in-frame-offset |
+ */
+#define FRAMES_PER_SOCKET_SHIFT 12
+#define FRAMES_PER_SOCKET (1 << FRAMES_PER_SOCKET_SHIFT)  // 4096
 
 /* Application working modes */
 #define MODE_AF_XDP 0x1
@@ -71,6 +79,7 @@ static int *ifindexes;
 static struct worker *workers;
 static struct bpf_object *obj;
 static int egress_ebpf_program = 0;
+static int owner_shift;
 
 static int xsk_get_xdp_stats(int fd, struct xsknf_socket_stats *stats)
 {
@@ -436,8 +445,7 @@ static inline void complete_tx(struct xsk_socket_info *xsks,
 		/* Map every frame to its owner */
 		for (i = 0; i < sent; i++) {
 			addr = *xsk_ring_cons__comp_addr(&tx_xsk->cq, idx++);
-			/* Replace shift with constant */
-			owner = addr >> 24;
+			owner = addr >> owner_shift;
 			to_fill[owner][nfill[owner]++] = addr;
 		}
 
@@ -879,6 +887,9 @@ int xsknf_init(int argc, char **argv, struct xsknf_config *config,
 	num_sockets = conf.workers * conf.num_interfaces;
 
 	if (conf.working_mode & MODE_AF_XDP) {
+		owner_shift = FRAMES_PER_SOCKET_SHIFT
+				+ __builtin_ffs(conf.xsk_frame_size) - 1;
+
 		/* Allocate workers */
 		workers = calloc(conf.workers, sizeof(struct worker));
 		if (!workers) {
