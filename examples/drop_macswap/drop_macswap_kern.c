@@ -27,7 +27,7 @@ struct {
 	__uint(max_entries, 32);
 } xsks SEC(".maps");
 
-SEC("xdp") int drop_macswap(struct xdp_md *ctx)
+SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 {
 	void *data = (void *)(long)ctx->data;
 	void *data_end = (void *)(long)ctx->data_end;

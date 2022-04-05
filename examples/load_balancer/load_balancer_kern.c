@@ -66,7 +66,7 @@ struct {
 	__uint(max_entries, MAX_SESSIONS);
 } active_sessions SEC(".maps");
 
-SEC("xdp") int ingress_load_balancer(struct xdp_md *ctx)
+SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 {
 	// if (ctx->rx_queue_index == 0) {
 	// 	return bpf_redirect_map(&xsks, 0, XDP_DROP);
@@ -264,7 +264,7 @@ UPDATE:;
  * ingress, since a backward packet will never enter the ingress direction of
  * the LB.
  */
-SEC("classifier") int egress_load_balancer(struct __sk_buff *ctx)
+SEC("tc") int handle_tc(struct __sk_buff *ctx)
 {
 	void *data = (void *)(long)ctx->data;
 	void *data_end = (void *)(long)ctx->data_end;

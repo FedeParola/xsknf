@@ -33,7 +33,7 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	}
 
 	swap_mac_addresses(pkt);
-	swap_mac_addresses_v2(pkt);
+	// swap_mac_addresses_v2(pkt);
 
 	return (ingress_ifindex + 1) % config.num_interfaces;
 }

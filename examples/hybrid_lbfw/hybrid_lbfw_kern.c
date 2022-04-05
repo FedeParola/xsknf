@@ -63,7 +63,7 @@ struct {
 	__uint(max_entries, MAX_SESSIONS);
 } active_sessions SEC(".maps");
 
-SEC("xdp") int firewall(struct xdp_md *ctx)
+SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 {
 	void *data = (void *)(long)ctx->data;
 	void *data_end = (void *)(long)ctx->data_end;
@@ -142,8 +142,7 @@ SEC("xdp") int firewall(struct xdp_md *ctx)
 	}
 }
 
-
-SEC("xdp1") int fwlb(struct xdp_md *ctx)
+int handle_xdp1(struct xdp_md *ctx)
 {
 	void *data = (void *)(long)ctx->data;
 	void *data_end = (void *)(long)ctx->data_end;

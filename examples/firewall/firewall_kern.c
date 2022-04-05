@@ -41,20 +41,13 @@ struct {
 #endif
 
 struct {
-	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-	__type(key, int);
-	__type(value, uint32_t);
-	__uint(max_entries, 1);
-} global_hash SEC(".maps");
-
-struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, struct session_id);
 	__type(value, int);
 	__uint(max_entries, MAX_ACL_SIZE);
 } acl SEC(".maps");
 
-SEC("xdp") int firewall(struct xdp_md *ctx)
+SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 {
 	void *data = (void *)(long)ctx->data;
 	void *data_end = (void *)(long)ctx->data_end;
@@ -123,12 +116,6 @@ SEC("xdp") int firewall(struct xdp_md *ctx)
 	key.daddr = iph->daddr;
 	key.proto = iph->protocol;
 
-    /* Only copy the hash */
-    // uint32_t hash = jhash(&key, sizeof(struct session_id), 0);
-    // bpf_map_update_elem(&global_hash, &zero, &hash, 0);
-	// return XDP_DROP;
-
-    /* Full hash table lookup */
 #ifdef MONITOR_LOOKUP_TIME
 	unsigned long before = bpf_ktime_get_ns();
 #endif

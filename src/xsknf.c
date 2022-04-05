@@ -370,8 +370,8 @@ static void load_ebpf_programs(char *path, struct bpf_object **obj)
 		exit(EXIT_FAILURE);
 	}
 
-	xdp_prog = bpf_object__find_program_by_title(*obj, "xdp");
-	tc_prog = bpf_object__find_program_by_title(*obj, "classifier");
+	xdp_prog = bpf_object__find_program_by_name(*obj, "handle_xdp");
+	tc_prog = bpf_object__find_program_by_name(*obj, "handle_tc");
 	if (!xdp_prog) {
 		fprintf(stderr, "ERROR: no xdp program found\n");
 		exit(EXIT_FAILURE);

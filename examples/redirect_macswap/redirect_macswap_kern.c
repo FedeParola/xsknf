@@ -28,7 +28,7 @@ struct {
 	__uint(max_entries, 32);
 } xsks SEC(".maps");
 
-SEC("xdp") int ingress_redirect_macswap(struct xdp_md *ctx)
+SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 {
     void *data = (void *)(long)ctx->data;
 	void *data_end = (void *)(long)ctx->data_end;
@@ -46,8 +46,8 @@ SEC("xdp") int ingress_redirect_macswap(struct xdp_md *ctx)
 	 * In pure XDP the redirect will fail and the packet will be sent back.
 	 */
 	if (stats->rx_npkts == 1) {
-		// return bpf_redirect_map(&xsks, 0, XDP_TX);
-		return bpf_redirect_map(&xsks, 0, XDP_PASS);
+		return bpf_redirect_map(&xsks, 0, XDP_TX);
+		// return bpf_redirect_map(&xsks, 0, XDP_PASS);
 	}
 
 	struct ethhdr *eth = data;
@@ -56,13 +56,13 @@ SEC("xdp") int ingress_redirect_macswap(struct xdp_md *ctx)
 	}
 
 	swap_mac_addresses(data);
-	swap_mac_addresses_v2(data);
+	// swap_mac_addresses_v2(data);
 
-	// return XDP_TX;
-	return XDP_PASS;
+	return XDP_TX;
+	// return XDP_PASS;
 }
 
-SEC("classifier") int egress_redirect_macswap(struct __sk_buff *skb)
+SEC("tc") int handle_tc(struct __sk_buff *skb)
 {
     void *data = (void *)(long)skb->data;
 	void *data_end = (void *)(long)skb->data_end;
