@@ -647,7 +647,7 @@ int main(int argc, char **argv)
 
 	parse_command_line(argc, argv, argv[0]);
 
-	load_services("/home/polycube/src/af_xdp-tests/examples/load_balancer/services.txt");
+	load_services("./services.txt");
 
 	xsknf_start_workers();
 
@@ -717,7 +717,7 @@ int main(int argc, char **argv)
 
 			printf("Average lookup time %lu\n",
 						rx_npkts == 0 ? 0 : lookup_time / rx_npkts);
-#endif  // MONITOR_LOOKUP_TIME
+#endif  /* MONITOR_LOOKUP_TIME */
 		}
 	}
 

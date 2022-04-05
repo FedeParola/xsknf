@@ -673,7 +673,7 @@ int main(int argc, char **argv)
 	parse_command_line(argc, argv, argv[0]);
 
 	init_acl("./acl.txt");
-	load_services("/home/polycube/src/af_xdp-tests/examples/hybrid_lbfw/services.txt");
+	load_services("./services.txt");
 
 	xsknf_start_workers();
 
