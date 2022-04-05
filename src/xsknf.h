@@ -51,7 +51,6 @@ struct xsknf_socket_stats {
     /* Application level stats */
 	unsigned long rx_empty_polls;
 	unsigned long fill_fail_polls;
-	unsigned long copy_tx_sendtos;
 	unsigned long tx_wakeup_sendtos;
     unsigned long tx_trigger_sendtos;
 	unsigned long opt_polls;

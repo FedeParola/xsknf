@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define NSTATS 14
+#define NSTATS 13
 
 struct socket_stats_ps {
     /* Ring level stats */
@@ -21,7 +21,6 @@ struct socket_stats_ps {
     /* Application level stats */
 	double rx_empty_polls;
 	double fill_fail_polls;
-	double copy_tx_sendtos;
 	double tx_wakeup_sendtos;
     double tx_trigger_sendtos;
 	double opt_polls;
@@ -106,8 +105,6 @@ static void print_socket_stats(struct xsknf_socket_stats *stats,
 				stats->rx_empty_polls);
 		printf(fmt, "fill fail polls", stats_ps->fill_fail_polls,
 				stats->fill_fail_polls);
-		printf(fmt, "copy tx sendtos", stats_ps->copy_tx_sendtos,
-				stats->copy_tx_sendtos);
 		printf(fmt, "tx wakeup sendtos", stats_ps->tx_wakeup_sendtos,
 				stats->tx_wakeup_sendtos);
         printf(fmt, "tx trigger sendtos", stats_ps->tx_trigger_sendtos,
