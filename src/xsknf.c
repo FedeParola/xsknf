@@ -44,7 +44,8 @@
 
 static size_t umem_bufsize;
 static int stop_workers = 0;
-static struct xsknf_config conf = {
+static struct xsknf_config conf;
+static struct xsknf_config default_conf = {
 	.working_mode = MODE_AF_XDP,
 	.xsk_frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
 	.batch_size = 64,
@@ -770,9 +771,12 @@ static void usage()
 	exit(EXIT_FAILURE);
 }
 
-static void parse_command_line(int argc, char **argv)
+int xsknf_parse_args(int argc, char **argv, struct xsknf_config *config)
 {
 	int option_index, c;
+
+	memcpy(config, &default_conf, sizeof(struct xsknf_config));
+	sprintf(conf.xdp_filename, "%s_kern.o", argv[0]);
 
 	for (;;) {
 		c = getopt_long(argc, argv, "i:pSf:ub:BM:w:", long_options,
@@ -783,15 +787,15 @@ static void parse_command_line(int argc, char **argv)
 		switch (c) {
 		case 'i':;
 			int i;
-			conf.bind_flags[conf.num_interfaces] = DEFAULT_BIND_FLAGS;
+			config->bind_flags[config->num_interfaces] = DEFAULT_BIND_FLAGS;
 			for (i = 0; optarg[i] != 0 && optarg[i] != ':'; i++);
 			if (optarg[i] == ':') {
 				switch (optarg[i + 1]) {
 				case 'c':
-					conf.bind_flags[conf.num_interfaces] |= XDP_COPY;
+					config->bind_flags[config->num_interfaces] |= XDP_COPY;
 					break;
 				case 'z':
-					conf.bind_flags[conf.num_interfaces] |= XDP_ZEROCOPY;
+					config->bind_flags[config->num_interfaces] |= XDP_ZEROCOPY;
 					break;
 				default:
 					fprintf(stderr, "ERROR: unknown copy mode '%c'\n",
@@ -800,43 +804,43 @@ static void parse_command_line(int argc, char **argv)
 				}
 				optarg[i] = 0;
 			}
-			conf.interfaces[conf.num_interfaces++] = optarg;
+			config->interfaces[config->num_interfaces++] = optarg;
 			break;
 		case 'p':
-			conf.poll = 1;
+			config->poll = 1;
 			break;
 		case 'S':
-			conf.xdp_flags |= XDP_FLAGS_SKB_MODE;
+			config->xdp_flags |= XDP_FLAGS_SKB_MODE;
 			break;
 		case 'u':
-			conf.unaligned_chunks = 1;
+			config->unaligned_chunks = 1;
 			break;
 		case 'f':
-			conf.xsk_frame_size = atoi(optarg);
+			config->xsk_frame_size = atoi(optarg);
 			break;
 		case 'b':
-			conf.batch_size = atoi(optarg);
+			config->batch_size = atoi(optarg);
 			break;
 		case 'B':
-			conf.busy_poll = 1;
+			config->busy_poll = 1;
 			break;
 		case 'M':
 			if (strcmp(optarg, "AF_XDP") == 0) {
-				conf.working_mode = MODE_AF_XDP;
+				config->working_mode = MODE_AF_XDP;
 			} else if (strcmp(optarg, "XDP") == 0) {
-				conf.working_mode = MODE_XDP;
+				config->working_mode = MODE_XDP;
 			} else if (strcmp(optarg, "COMBINED") == 0) {
-				conf.working_mode = MODE_COMBINED;
+				config->working_mode = MODE_COMBINED;
 			} else {
 				fprintf(stderr, "ERROR: unknown working mode %s\n", optarg);
 				usage();
 			}
 			break;
 		case 'w':
-			conf.workers = atoi(optarg);
-			if (conf.workers < 1) {
+			config->workers = atoi(optarg);
+			if (config->workers < 1) {
 				fprintf(stderr, "ERROR: Invalid number of workers %u",
-						conf.workers);
+						config->workers);
 				usage();
 			}
 			break;
@@ -845,29 +849,30 @@ static void parse_command_line(int argc, char **argv)
 		}
 	}
 
-    if (conf.num_interfaces == 0) {
+    if (config->num_interfaces == 0) {
         fprintf(stderr, "ERROR: at least one interface in required\n");
         usage();
     }
 
-	if (!(conf.xdp_flags & XDP_FLAGS_SKB_MODE)) {
-		conf.xdp_flags |= XDP_FLAGS_DRV_MODE;
+	if (!(config->xdp_flags & XDP_FLAGS_SKB_MODE)) {
+		config->xdp_flags |= XDP_FLAGS_DRV_MODE;
 	}
 
-	if ((conf.xsk_frame_size & (conf.xsk_frame_size - 1)) &&
-	    !conf.unaligned_chunks) {
+	if ((config->xsk_frame_size & (config->xsk_frame_size - 1)) &&
+	    !config->unaligned_chunks) {
 		fprintf(stderr, "--frame-size=%d is not a power of two\n",
-			conf.xsk_frame_size);
+			config->xsk_frame_size);
 		usage();
 	}
+
+	return 0;
 }
 
-int xsknf_init(int argc, char **argv, struct xsknf_config *config,
-		struct bpf_object **bpf_obj)
+int xsknf_init(struct xsknf_config *config, struct bpf_object **bpf_obj)
 {
 	int ret;
 
-	parse_command_line(argc, argv);
+	memcpy(&conf, config, sizeof(struct xsknf_config));
 
 	ifindexes = malloc(conf.num_interfaces * sizeof(int));
 	if (!ifindexes) {
@@ -986,7 +991,6 @@ int xsknf_init(int argc, char **argv, struct xsknf_config *config,
 	}
 	
 	if (conf.working_mode & MODE_XDP) {
-		sprintf(conf.xdp_filename, "%s_kern.o", argv[0]);
 		printf("Loading custom eBPF programs...\n");
 		load_ebpf_programs(conf.xdp_filename, &obj);
 		*bpf_obj = obj;

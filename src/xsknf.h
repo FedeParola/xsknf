@@ -56,15 +56,9 @@ struct xsknf_socket_stats {
 	unsigned long opt_polls;
 };
 
-/*
- * Future API:
- * int xsknf_parse_args(int argc, char **argv, struct xsknf_config *config);
- * int xsknf_init(struct xsknf_config *config, struct bpf_object **bpf_obj);
- */
 
-/* Current API */
-int xsknf_init(int argc, char **argv, struct xsknf_config *config,
-		struct bpf_object **bpf_obj);
+int xsknf_parse_args(int argc, char **argv, struct xsknf_config *config);
+int xsknf_init(struct xsknf_config *config, struct bpf_object **bpf_obj);
 int xsknf_cleanup();
 int xsknf_start_workers();
 int xsknf_stop_workers();

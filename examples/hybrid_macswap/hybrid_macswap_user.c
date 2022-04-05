@@ -103,7 +103,8 @@ int main(int argc, char **argv)
 	signal(SIGABRT, int_exit);
 	signal(SIGUSR1, int_usr);
 
-	xsknf_init(argc, argv, &config, &obj);
+	xsknf_parse_args(argc, argv, &config);
+	xsknf_init(&config, &obj);
 
 	parse_command_line(argc, argv, argv[0]);
 
