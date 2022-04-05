@@ -24,18 +24,17 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex);
 
 struct xsknf_config {
 	char *interfaces[XSKNF_MAX_INTERFACES];
+	uint32_t bind_flags[XSKNF_MAX_INTERFACES];
 	unsigned num_interfaces;
 	unsigned workers;
     unsigned working_mode;
     uint32_t xdp_flags;
     uint32_t batch_size;
     int poll;
-    uint32_t xdp_bind_flags;
     int unaligned_chunks;
     int xsk_frame_size;
     int busy_poll;
 	char xdp_filename[256];
-    // xsknf_packet_processor processor;
 };
 
 struct xsknf_socket_stats {

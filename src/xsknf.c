@@ -38,17 +38,18 @@
 #define MODE_XDP 0x2
 #define MODE_COMBINED MODE_AF_XDP | MODE_XDP
 
+#define DEFAULT_BIND_FLAGS (XDP_USE_NEED_WAKEUP)
+
 #define POLL_TIMEOUT_MS 1000
 
 static size_t umem_bufsize;
-static uint32_t opt_xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static int stop_workers = 0;
-static uint32_t opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
 static struct xsknf_config conf = {
 	.working_mode = MODE_AF_XDP,
 	.xsk_frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
 	.batch_size = 64,
-	.workers = 1
+	.workers = 1,
+	.xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST
 };
 
 struct xsk_socket_info {
@@ -132,15 +133,11 @@ static void xsk_configure_socket(char *iface, unsigned queue,
 	} else {
 		cfg.libbpf_flags = 0;
 	}
-	cfg.xdp_flags = opt_xdp_flags;
+	cfg.xdp_flags = conf.xdp_flags;
 	cfg.bind_flags = xsk->bind_flags;
 
 	struct xsk_umem *umem = xsk->bind_flags & XDP_COPY ?
 			xsk->worker->copy_umem : xsk->worker->umem;
-
-	if (conf.num_interfaces == 1) {
-		umem = xsk->worker->umem;
-	}
 
 	ret = xsk_socket__create_shared(&xsk->xsk, iface, queue, umem, &xsk->rx,
 			&xsk->tx, &xsk->fq, &xsk->cq, &cfg);
@@ -381,7 +378,7 @@ static void load_ebpf_programs(char *path, struct bpf_object **obj)
 
 	for (int i = 0; i < conf.num_interfaces; i++) {
 		if (bpf_set_link_xdp_fd(ifindexes[i], bpf_program__fd(xdp_prog),
-				opt_xdp_flags) < 0) {
+				conf.xdp_flags) < 0) {
 			fprintf(stderr, "ERROR: failed setting xdp program on %s\n",
 					conf.interfaces[i]);
 			exit(EXIT_FAILURE);
@@ -741,12 +738,9 @@ static void *worker_loop(void *arg)
 }
 
 static struct option long_options[] = {
-	{"interfaces", required_argument, 0, 'i'},
+	{"iface", required_argument, 0, 'i'},
 	{"poll", no_argument, 0, 'p'},
 	{"xdp-skb", no_argument, 0, 'S'},
-	{"xdp-native", no_argument, 0, 'N'},
-	{"zero-copy", no_argument, 0, 'z'},
-	{"copy", no_argument, 0, 'c'},
 	{"frame-size", required_argument, 0, 'f'},
 	{"unaligned", no_argument, 0, 'u'},
 	{"batch-size", required_argument, 0, 'b'},
@@ -759,19 +753,17 @@ static struct option long_options[] = {
 static void usage()
 {
 	const char *str =
-		"  xsknf options:\n"
-		"  -i, --interfaces=n  Comma-separated list of interfaces\n"
-		"  -p, --poll          Use poll syscall\n"
-		"  -S, --xdp-skb=n     Use XDP skb-mod\n"
-		"  -N, --xdp-native=n  Enforce XDP native mode\n"
-		"  -z, --zero-copy     Force zero-copy mode\n"
-		"  -c, --copy          Force copy mode\n"
-		"  -f, --frame-size=n  Set the frame size (must be a power of two in aligned mode, default is %d)\n"
-		"  -u, --unaligned     Enable unaligned chunk placement\n"
-		"  -b, --batch-size=n  Batch size for sending or receiving packets. Default is %d\n"
-		"  -B, --busy-poll     Busy poll\n"
-		"  -M  --mode          Working mode (AF_XDP, XDP, COMBINED)\n"
-		"  -w  --workers=n     Number of packet processing workers\n"
+		"	xsknf options:\n"
+		"	-i, --iface=n[:m]	Interface to operate on (a copy mode between copy (c) or zero-copy (z)\n"
+		"				can optionally be specified). Can be repeated multiple times\n"
+		"	-p, --poll          	Use poll syscall\n"
+		"	-S, --xdp-skb=n     	Use XDP skb-mod\n"
+		"	-f, --frame-size=n	Set the frame size (must be a power of two in aligned mode, default is %d)\n"
+		"	-u, --unaligned		Enable unaligned chunk placement\n"
+		"	-b, --batch-size=n	Batch size for sending or receiving packets. Default is %d\n"
+		"	-B, --busy-poll		Busy poll\n"
+		"	-M  --mode		Working mode (AF_XDP, XDP, COMBINED)\n"
+		"	-w  --workers=n		Number of packet processing workers\n"
 		"\n";
 	fprintf(stderr, str, XSK_UMEM__DEFAULT_FRAME_SIZE, conf.batch_size);
 
@@ -783,34 +775,38 @@ static void parse_command_line(int argc, char **argv)
 	int option_index, c;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "i:pSNczf:ub:BM:w:", long_options,
+		c = getopt_long(argc, argv, "i:pSf:ub:BM:w:", long_options,
 				&option_index);
 		if (c == -1)
 			break;
 
 		switch (c) {
 		case 'i':;
-			char *iface;
-			iface = strtok(optarg, ",");
-			do {
-				conf.interfaces[conf.num_interfaces++] = iface;
-			} while ((iface = strtok(NULL, ",")) != NULL);
+			int i;
+			conf.bind_flags[conf.num_interfaces] = DEFAULT_BIND_FLAGS;
+			for (i = 0; optarg[i] != 0 && optarg[i] != ':'; i++);
+			if (optarg[i] == ':') {
+				switch (optarg[i + 1]) {
+				case 'c':
+					conf.bind_flags[conf.num_interfaces] |= XDP_COPY;
+					break;
+				case 'z':
+					conf.bind_flags[conf.num_interfaces] |= XDP_ZEROCOPY;
+					break;
+				default:
+					fprintf(stderr, "ERROR: unknown copy mode '%c'\n",
+							optarg[i + 1]);
+					usage();
+				}
+				optarg[i] = 0;
+			}
+			conf.interfaces[conf.num_interfaces++] = optarg;
 			break;
 		case 'p':
 			conf.poll = 1;
 			break;
 		case 'S':
-			opt_xdp_flags |= XDP_FLAGS_SKB_MODE;
-			opt_xdp_bind_flags |= XDP_COPY;
-			break;
-		case 'N':
-			/* default, set below */
-			break;
-		case 'z':
-			opt_xdp_bind_flags |= XDP_ZEROCOPY;
-			break;
-		case 'c':
-			opt_xdp_bind_flags |= XDP_COPY;
+			conf.xdp_flags |= XDP_FLAGS_SKB_MODE;
 			break;
 		case 'u':
 			conf.unaligned_chunks = 1;
@@ -854,8 +850,9 @@ static void parse_command_line(int argc, char **argv)
         usage();
     }
 
-	if (!(opt_xdp_flags & XDP_FLAGS_SKB_MODE))
-		opt_xdp_flags |= XDP_FLAGS_DRV_MODE;
+	if (!(conf.xdp_flags & XDP_FLAGS_SKB_MODE)) {
+		conf.xdp_flags |= XDP_FLAGS_DRV_MODE;
+	}
 
 	if ((conf.xsk_frame_size & (conf.xsk_frame_size - 1)) &&
 	    !conf.unaligned_chunks) {
@@ -868,6 +865,8 @@ static void parse_command_line(int argc, char **argv)
 int xsknf_init(int argc, char **argv, struct xsknf_config *config,
 		struct bpf_object **bpf_obj)
 {
+	int ret;
+
 	parse_command_line(argc, argv);
 
 	ifindexes = malloc(conf.num_interfaces * sizeof(int));
@@ -880,7 +879,7 @@ int xsknf_init(int argc, char **argv, struct xsknf_config *config,
 		if (!ifindexes[i]) {
 			fprintf(stderr, "ERROR: interface \"%s\" does not exist\n",
 					conf.interfaces[i]);
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -890,89 +889,98 @@ int xsknf_init(int argc, char **argv, struct xsknf_config *config,
 		owner_shift = FRAMES_PER_SOCKET_SHIFT
 				+ __builtin_ffs(conf.xsk_frame_size) - 1;
 
+		/* Set bind flags for sockets */
+		for (int if_idx = 0; if_idx < conf.num_interfaces; if_idx++) {
+			if (conf.xdp_flags & XDP_FLAGS_SKB_MODE) {
+				/* All sockets need to work in copy mode */
+				conf.bind_flags[if_idx] &= ~XDP_ZEROCOPY;
+				conf.bind_flags[if_idx] |= XDP_COPY;
+			}
+
+			if (!(conf.bind_flags[if_idx] & (XDP_COPY | XDP_ZEROCOPY))) {
+				/* 
+				 * If no copy mode was explicitly defined try to force
+				 * zero-copy. Libxdp allows to avoid specifying a copy mode and
+				 * automatically chooses the best available one, but how can I
+				 * understand which UMEM to use in this case?
+				 */
+				conf.bind_flags[if_idx] |= XDP_ZEROCOPY;
+			}
+		}
+
 		/* Allocate workers */
 		workers = calloc(conf.workers, sizeof(struct worker));
 		if (!workers) {
 			exit_with_error(errno);
 		}
 
+		/* Configure the UMEM */
+		umem_bufsize = FRAMES_PER_SOCKET * conf.num_interfaces
+				* conf.xsk_frame_size;
+		int umem_buf_flags = MAP_PRIVATE | MAP_ANONYMOUS
+				| (conf.unaligned_chunks ? MAP_HUGETLB : 0);
+		struct xsk_umem_config umem_cfg = {
+			.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS * 2,
+			.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
+			.frame_size = conf.xsk_frame_size,
+			.frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
+			.flags = conf.unaligned_chunks ?
+					XDP_UMEM_UNALIGNED_CHUNK_FLAG : 0
+		};
+
 		for (int wrk_idx = 0; wrk_idx < conf.workers; wrk_idx++) {
-			workers[wrk_idx].id = wrk_idx;
+			struct worker *worker = &workers[wrk_idx];
+			worker->id = wrk_idx;
 
-			workers[wrk_idx].xsks = calloc(conf.num_interfaces,
+			worker->xsks = calloc(conf.num_interfaces,
 					sizeof(struct xsk_socket_info));
-			if (!workers[wrk_idx].xsks) {
+			if (!worker->xsks) {
 				exit_with_error(errno);
-			}
-
-			/*
-			 * Reserve memory for the umem. Use hugepages if unaligned chunk
-			 * mode
-			 */
-			umem_bufsize = FRAMES_PER_SOCKET * conf.num_interfaces
-					* conf.xsk_frame_size;
-			int flags = MAP_PRIVATE | MAP_ANONYMOUS
-					| (conf.unaligned_chunks ? MAP_HUGETLB : 0);
-			workers[wrk_idx].buffer = mmap(NULL, umem_bufsize,
-					PROT_READ | PROT_WRITE, flags, -1, 0);
-			if (workers[wrk_idx].buffer == MAP_FAILED) {
-				exit_with_error(errno);
-				exit(EXIT_FAILURE);
-			}
-
-			/* Configure the UMEM */
-			struct xsk_umem_config cfg = {
-				.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS * 2,
-				.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
-				.frame_size = conf.xsk_frame_size,
-				.frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
-				.flags = conf.unaligned_chunks ?
-						XDP_UMEM_UNALIGNED_CHUNK_FLAG : 0
-			};
-			int ret = xsk_umem__create(&workers[wrk_idx].umem, 
-					workers[wrk_idx].buffer, umem_bufsize,
-					&workers[wrk_idx].xsks[0].fq, &workers[wrk_idx].xsks[0].cq,
-					&cfg);
-			if (ret) {
-				exit_with_error(-ret);
-			}
-
-			if (conf.num_interfaces > 1) {
-				/* Reserve memory for the copy umem */
-				workers[wrk_idx].copy_buffer = mmap(NULL, umem_bufsize,
-						PROT_READ | PROT_WRITE, flags, -1, 0);
-				if (workers[wrk_idx].copy_buffer == MAP_FAILED) {
-					exit_with_error(errno);
-					exit(EXIT_FAILURE);
-				}
-
-				/* Configure the UMEM */
-				ret = xsk_umem__create(&workers[wrk_idx].copy_umem,
-						workers[wrk_idx].copy_buffer, umem_bufsize,
-						&workers[wrk_idx].xsks[1].fq,
-						&workers[wrk_idx].xsks[1].cq, &cfg);
-				if (ret) {
-					exit_with_error(-ret);
-				}
 			}
 
 			/* Create sockets */
 			for (int if_idx = 0; if_idx < conf.num_interfaces; if_idx++) {
-				workers[wrk_idx].xsks[if_idx].worker = &workers[wrk_idx];
-				if (if_idx == 1) {
-					workers[wrk_idx].xsks[if_idx].bind_flags
-							= opt_xdp_bind_flags & ~XDP_ZEROCOPY | XDP_COPY;
-					workers[wrk_idx].xsks[if_idx].buffer
-							= workers[wrk_idx].copy_buffer;
+				struct xsk_socket_info *xsk = &worker->xsks[if_idx];
+				xsk->worker = worker;
+
+				if (conf.bind_flags[if_idx] & XDP_COPY) {
+					if (worker->copy_buffer == NULL) {
+						worker->copy_buffer = mmap(NULL, umem_bufsize,
+								PROT_READ | PROT_WRITE, umem_buf_flags, -1, 0);
+						if (worker->copy_buffer == MAP_FAILED) {
+							exit_with_error(errno);
+						}
+						ret = xsk_umem__create(&worker->copy_umem,
+								worker->copy_buffer, umem_bufsize, &xsk->fq,
+								&xsk->cq, &umem_cfg);
+						if (ret) {
+							exit_with_error(-ret);
+						}
+					}
+
+					xsk->buffer = worker->copy_buffer;
+
 				} else {
-					workers[wrk_idx].xsks[if_idx].bind_flags
-							= opt_xdp_bind_flags;
-					workers[wrk_idx].xsks[if_idx].buffer
-							= workers[wrk_idx].buffer;
+					if (worker->buffer == NULL) {
+						worker->buffer = mmap(NULL, umem_bufsize,
+								PROT_READ | PROT_WRITE, umem_buf_flags, -1, 0);
+						if (worker->buffer == MAP_FAILED) {
+							exit_with_error(errno);
+						}
+						ret = xsk_umem__create(&worker->umem, 
+								worker->buffer, umem_bufsize,
+								&xsk->fq, &xsk->cq, &umem_cfg);
+						if (ret) {
+							exit_with_error(-ret);
+						}
+					}
+
+					xsk->buffer = worker->buffer;
 				}
+
+				xsk->bind_flags = conf.bind_flags[if_idx];
 				xsk_configure_socket(conf.interfaces[if_idx], wrk_idx,
-						&workers[wrk_idx].xsks[if_idx],
-						if_idx * FRAMES_PER_SOCKET);
+						xsk, if_idx * FRAMES_PER_SOCKET);
 			}
 		}
 	}
@@ -1017,7 +1025,7 @@ int xsknf_cleanup()
 
 	if (conf.working_mode & MODE_XDP) {
 		for (int i = 0; i < conf.num_interfaces; i++) {
-			bpf_set_link_xdp_fd(ifindexes[i], -1, opt_xdp_flags);
+			bpf_set_link_xdp_fd(ifindexes[i], -1, conf.xdp_flags);
 		}
 		if (egress_ebpf_program) {
 			del_clsact_qdiscs();
