@@ -757,8 +757,8 @@ static void usage()
 		"	xsknf options:\n"
 		"	-i, --iface=n[:m]	Interface to operate on (a copy mode between copy (c) or zero-copy (z)\n"
 		"				can optionally be specified). Can be repeated multiple times\n"
-		"	-p, --poll          	Use poll syscall\n"
-		"	-S, --xdp-skb=n     	Use XDP skb-mod\n"
+		"	-p, --poll		Use poll syscall\n"
+		"	-S, --xdp-skb=n		Use XDP skb-mode\n"
 		"	-f, --frame-size=n	Set the frame size (must be a power of two in aligned mode, default is %d)\n"
 		"	-u, --unaligned		Enable unaligned chunk placement\n"
 		"	-b, --batch-size=n	Batch size for sending or receiving packets. Default is %d\n"
@@ -766,7 +766,7 @@ static void usage()
 		"	-M  --mode		Working mode (AF_XDP, XDP, COMBINED)\n"
 		"	-w  --workers=n		Number of packet processing workers\n"
 		"\n";
-	fprintf(stderr, str, XSK_UMEM__DEFAULT_FRAME_SIZE, conf.batch_size);
+	fprintf(stderr, str, XSK_UMEM__DEFAULT_FRAME_SIZE, default_conf.batch_size);
 
 	exit(EXIT_FAILURE);
 }
