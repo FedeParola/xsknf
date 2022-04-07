@@ -776,7 +776,7 @@ int xsknf_parse_args(int argc, char **argv, struct xsknf_config *config)
 	int option_index, c;
 
 	memcpy(config, &default_conf, sizeof(struct xsknf_config));
-	sprintf(conf.xdp_filename, "%s_kern.o", argv[0]);
+	sprintf(config->xdp_filename, "%s_kern.o", argv[0]);
 
 	for (;;) {
 		c = getopt_long(argc, argv, "i:pSf:ub:BM:w:", long_options,
