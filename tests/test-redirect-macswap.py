@@ -46,7 +46,7 @@ def get_pktgen_stats():
     return ret[2], int(ret[1]), int(ret[3])
 
 out = open(RES_FILENAME, 'w')
-out.write("run;mode;throughput;target;llc-loads;llc-load-misses;llc-store;llc-store-misses;user;system;softirq;verified\n")
+out.write("run,mode,throughput,target,llc-loads,llc-load-misses,llc-store,llc-store-misses,user,system,softirq,verified\n")
 
 for run in range(RUNS):
     for mode in MODES:
@@ -150,7 +150,7 @@ for run in range(RUNS):
         cmd = ['sudo', 'killall', APP_NAME]
         subprocess.run(cmd, check=True)
 
-        out.write(f'{run};{mode};{best_r};{best_t};{loads};{load_misses};{stores};{store_misses};{user};{system};{softirq};{verified}\n')
+        out.write(f'{run},{mode},{best_r},{best_t},{loads},{load_misses},{stores},{store_misses},{user},{system},{softirq},{verified}\n')
         out.flush()
 
         if mode == 'af_xdp-bp' or mode == 'combined-bp':

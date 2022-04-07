@@ -62,7 +62,7 @@ def get_pktgen_stats():
     return ret[0], int(ret[1])
 
 out = open(RES_FILENAME, 'w')
-out.write("run;drop-share;mode;throughput;target;llc-loads;llc-load-misses;llc-store;llc-store-misses;user;system;softirq;verified\n")
+out.write("run,drop-share,mode,throughput,target,llc-loads,llc-load-misses,llc-store,llc-store-misses,user,system,softirq,verified\n")
 
 cmd = [ACL_GEN_PATH, str(ACL_SIZE)]
 subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL,
@@ -185,7 +185,7 @@ for run in range(RUNS):
             cmd = ['sudo', 'killall', app_name]
             subprocess.run(cmd, check=True)
 
-            out.write(f'{run};{drop_share};{mode};{best_r};{best_t};{loads};{load_misses};{stores};{store_misses};{user};{system};{softirq};{verified}\n')
+            out.write(f'{run},{drop_share},{mode},{best_r},{best_t},{loads},{load_misses},{stores},{store_misses},{user},{system},{softirq},{verified}\n')
             out.flush()
 
             if mode == 'af_xdp-bp' or mode == 'combined-bp':
