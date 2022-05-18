@@ -106,7 +106,8 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 
     udp->check = csum;
 
-    return 0;
+	// return -1;
+	return (ingress_ifindex + 1) % config.num_interfaces;
 }
 
 static struct option long_options[] = {
@@ -185,20 +186,22 @@ int main(int argc, char **argv)
 	setlocale(LC_ALL, "");
 
 	if (config.working_mode & MODE_XDP) {
-		struct bpf_map *map;
-		int zero = 0, iter_map, ret;
-
-		map = bpf_object__find_map_by_name(obj, "checksum_iterations");
-		iter_map = bpf_map__fd(map);
-		if (iter_map < 0) {
-			fprintf(stderr, "ERROR: no checksum_iterations map found: %s\n",
-				strerror(iter_map));
+		struct bpf_map *global_map = bpf_object__find_map_by_name(obj,
+				"checksum.bss");
+		if (!global_map) {
+			fprintf(stderr, "Error retrieveing eBPF global data\n");
 			exit(EXIT_FAILURE);
 		}
 
-		ret = bpf_map_update_elem(iter_map, &zero, &opt_csum_iterations, 0);
-		if (ret) {
-			fprintf(stderr, "ERROR: bpf_map_update_elem 0\n");
+		int global_fd = bpf_map__fd(global_map), zero = 0;
+		if (global_fd < 0) {
+			fprintf(stderr, "Error retrieveing eBPF global data fd\n");
+			exit(EXIT_FAILURE);
+		}
+
+		struct global_data global = {.csum_iterations = opt_csum_iterations};
+		if (bpf_map_update_elem(global_fd, &zero, &global, 0)) {
+			fprintf(stderr, "Error initializing eBPF global data\n");
 			exit(EXIT_FAILURE);
 		}
 	}

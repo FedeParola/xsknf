@@ -23,18 +23,13 @@ struct {
 } xdp_stats SEC(".maps");
 
 struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, int);
-	__type(value, int);
-	__uint(max_entries, 1);
-} checksum_iterations SEC(".maps");
-
-struct {
 	__uint(type, BPF_MAP_TYPE_XSKMAP);
 	__uint(key_size, sizeof(int));
 	__uint(value_size, sizeof(int));
 	__uint(max_entries, 32);
 } xsks SEC(".maps");
+
+struct global_data global = {0};
 
 SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 {
@@ -93,13 +88,8 @@ SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 	/* Clean old checksum */
 	udp->check = 0;
 
-	int *iter = bpf_map_lookup_elem(&checksum_iterations, &zero);
-	if (!iter) {
-		return XDP_ABORTED;
-	}
-
 	for (int i = 0; i < MAX_CHECKSUM_ITERATIONS; i++) {
-		if (i >= *iter) {
+		if (i >= global.csum_iterations) {
 			break;
 		}
 
@@ -121,9 +111,10 @@ SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 	uint16_t csum = (uint16_t)csum_buffer + (uint16_t)(csum_buffer >> 16);
 	csum = ~csum;
 
-    udp->check = csum;
+	udp->check = csum;
 
-    return XDP_DROP;
+	// return XDP_DROP;
+	return XDP_TX;
 }
 
 char _license[] SEC("license") = "GPL";
