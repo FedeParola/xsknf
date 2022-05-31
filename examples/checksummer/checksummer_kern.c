@@ -49,7 +49,7 @@ SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 	 * In pure XDP the redirect will fail and the packet will be dropped.
 	 */
 	if (stats->rx_npkts == 1) {
-		return bpf_redirect_map(&xsks, 0, XDP_DROP);
+		return bpf_redirect_map(&xsks, 0, global.action);
 	}
 
 	struct ethhdr *eth = data;
@@ -113,7 +113,7 @@ SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 
 	udp->check = csum;
 
-	// return XDP_DROP;
+	// return global.action;
 	return XDP_TX;
 }
 

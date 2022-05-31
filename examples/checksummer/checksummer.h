@@ -3,4 +3,5 @@
 
 struct global_data {
 	int csum_iterations;
+	int action;
 };

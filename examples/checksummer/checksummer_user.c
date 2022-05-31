@@ -2,25 +2,26 @@
 #include "../common/statistics.h"
 #include <arpa/inet.h>
 #include <bpf/bpf.h>
-#include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
-#include <linux/if_link.h>
 #include <linux/ip.h>
-#include <linux/jhash.h>
-#include <linux/tcp.h>
 #include <linux/udp.h>
 #include <locale.h>
 #include <net/ethernet.h>
-#include <net/if.h>
 #include <signal.h>
 #include <unistd.h>
 #include <xsknf.h>
+
+enum action {
+	ACTION_REDIRECT,
+	ACTION_DROP
+};
 
 static int benchmark_done;
 static int opt_quiet;
 static int opt_extra_stats;
 static int opt_app_stats;
+static enum action opt_action = ACTION_REDIRECT;
 static int opt_csum_iterations = 1;
 
 struct bpf_object *obj;
@@ -106,15 +107,17 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 
     udp->check = csum;
 
-	// return -1;
+	// return opt_action == ACTION_REDIRECT ?
+	// 		(ingress_ifindex + 1) % config.num_interfaces : -1;
 	return (ingress_ifindex + 1) % config.num_interfaces;
 }
 
 static struct option long_options[] = {
+	{"action", required_argument, 0, 'c'},
+	{"csum-iterations", no_argument, 0, 'i'},
 	{"quiet", no_argument, 0, 'q'},
 	{"extra-stats", no_argument, 0, 'x'},
 	{"app-stats", no_argument, 0, 'a'},
-	{"csum-iterations", no_argument, 0, 'i'},
 	{0, 0, 0, 0}
 };
 
@@ -123,10 +126,11 @@ static void usage(const char *prog)
 	const char *str =
 		"  Usage: %s [XSKNF_OPTIONS] -- [APP_OPTIONS]\n"
 		"  App options:\n"
+		"  -c, --action		REDIRECT or DROP packets (default REDIRECT)."
+		"  -i, --csum-iterations	Number of times to recompute the checksum.\n"
 		"  -q, --quiet		Do not display any stats.\n"
 		"  -x, --extra-stats	Display extra statistics.\n"
 		"  -a, --app-stats	Display application (syscall) statistics.\n"
-		"  -i, --csum-iterations	Number of times to recompute the checksum.\n"
 		"\n";
 	fprintf(stderr, str, prog);
 
@@ -138,11 +142,24 @@ static void parse_command_line(int argc, char **argv, char *app_path)
 	int option_index, c;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "qxai:", long_options, &option_index);
+		c = getopt_long(argc, argv, "qxai:c:", long_options, &option_index);
 		if (c == -1)
 			break;
 
 		switch (c) {
+		case 'c':
+			if (!strcmp(optarg, "REDIRECT")) {
+				opt_action = ACTION_REDIRECT;
+			} else if (!strcmp(optarg, "DROP")) {
+				opt_action = ACTION_DROP;
+			} else {
+				fprintf(stderr, "ERROR: invalid action %s\n", optarg);
+				usage(basename(app_path));
+			}
+			break;
+		case 'i':
+			opt_csum_iterations = atoi(optarg);
+			break;
 		case 'q':
 			opt_quiet = 1;
 			break;
@@ -151,9 +168,6 @@ static void parse_command_line(int argc, char **argv, char *app_path)
 			break;
 		case 'a':
 			opt_app_stats = 1;
-			break;
-		case 'i':
-			opt_csum_iterations = atoi(optarg);
 			break;
 		default:
 			usage(basename(app_path));
@@ -189,19 +203,22 @@ int main(int argc, char **argv)
 		struct bpf_map *global_map = bpf_object__find_map_by_name(obj,
 				"checksum.bss");
 		if (!global_map) {
-			fprintf(stderr, "Error retrieveing eBPF global data\n");
+			fprintf(stderr, "ERROR: unable to retrieve eBPF global data\n");
 			exit(EXIT_FAILURE);
 		}
 
 		int global_fd = bpf_map__fd(global_map), zero = 0;
 		if (global_fd < 0) {
-			fprintf(stderr, "Error retrieveing eBPF global data fd\n");
+			fprintf(stderr, "ERROR: unable to retrieve eBPF global data fd\n");
 			exit(EXIT_FAILURE);
 		}
 
-		struct global_data global = {.csum_iterations = opt_csum_iterations};
+		struct global_data global = {
+			.csum_iterations = opt_csum_iterations,
+			.action = opt_action == ACTION_REDIRECT ? XDP_TX : XDP_DROP
+		};
 		if (bpf_map_update_elem(global_fd, &zero, &global, 0)) {
-			fprintf(stderr, "Error initializing eBPF global data\n");
+			fprintf(stderr, "ERROR: unable to initialize eBPF global data\n");
 			exit(EXIT_FAILURE);
 		}
 	}
