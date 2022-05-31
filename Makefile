@@ -31,7 +31,8 @@ EXAMPLES := drop_macswap/drop_macswap			\
 			load_balancer/load_balancer			\
 			checksummer/checksummer				\
 			hybrid_macswap/hybrid_macswap		\
-			hybrid_lbfw/hybrid_lbfw
+			hybrid_lbfw/hybrid_lbfw				\
+			test_memory/test_memory
 EXAMPLES_DIR     := ./examples
 EXAMPLES_TARGETS := $(addprefix $(EXAMPLES_DIR)/,$(EXAMPLES))
 EXAMPLES_USER	 := $(addsuffix _user.o,$(EXAMPLES_TARGETS))
