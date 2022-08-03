@@ -55,7 +55,7 @@ static void usage(const char *prog)
 	const char *str =
 		"  Usage: %s [XSKNF_OPTIONS] -- [APP_OPTIONS]\n"
 		"  App options:\n"
-		"  -c, --action		REDIRECT or DROP packets (default REDIRECT)."
+		"  -c, --action		REDIRECT or DROP packets (default REDIRECT).\n"
 		"  -s, --test-size	Number of consecutive array entries to access.\n"
 		"  -q, --quiet		Do not display any stats.\n"
 		"  -x, --extra-stats	Display extra statistics.\n"
