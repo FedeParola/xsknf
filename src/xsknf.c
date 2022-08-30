@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "xsknf.h"
 
 #include <arpa/inet.h>
@@ -13,6 +15,7 @@
 #include <net/if.h>
 #include <poll.h>
 #include <pthread.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1044,11 +1047,51 @@ int xsknf_start_workers()
 	stop_workers = 0;
 
 	if (conf.working_mode & MODE_AF_XDP) {
+		/* Get available CPUs */
+		pthread_t main_t = pthread_self();
+		cpu_set_t cpu_set;
+		int ret = pthread_getaffinity_np(main_t, sizeof(cpu_set_t), &cpu_set);
+		if (ret) {
+			exit_with_error(ret);
+		}
+
+		int num_cpus = CPU_COUNT(&cpu_set), curr_cpu = 0;
+		int cpus[num_cpus];
+
+		if (num_cpus < conf.workers) {
+			fprintf(stderr, "ERROR: not enough CPUs to host all workers\n");
+			xsknf_cleanup();
+			exit(EXIT_FAILURE);
+		}
+
+		for (int i = 0; curr_cpu < num_cpus; i++) {
+			if (CPU_ISSET(i, &cpu_set)) {
+				cpus[curr_cpu++] = i;
+			}
+		}
+
+		curr_cpu = 0;
 		for (int i = 0; i < conf.workers; i++) {
-			int ret = pthread_create(&workers[i].thread, NULL, worker_loop,
+			ret = pthread_create(&workers[i].thread, NULL, worker_loop,
 					&workers[i]);
-			if (ret)
+			if (ret) {
 				exit_with_error(ret);
+			}
+
+			/*
+			 * Set worker affinity to the corresponding CPU (worker N is bound
+			 * to the Nth CPU assigned to the application).
+			 * It is up to the user to guarantee that NIC interrupts land on the
+			 * correct CPU through irq_affinity
+			 * (i.e., queue N -> Nth CPU -> worker N).
+			 */
+			CPU_ZERO(&cpu_set);
+			CPU_SET(cpus[curr_cpu++], &cpu_set);
+			ret = pthread_setaffinity_np(workers[i].thread, sizeof(cpu_set_t),
+					&cpu_set);
+			if (ret) {
+				exit_with_error(ret);
+			}
 		}
 	}
 
