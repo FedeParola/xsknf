@@ -36,11 +36,6 @@
 #define FRAMES_PER_SOCKET_SHIFT 12
 #define FRAMES_PER_SOCKET (1 << FRAMES_PER_SOCKET_SHIFT)  // 4096
 
-/* Application working modes */
-#define MODE_AF_XDP 0x1
-#define MODE_XDP 0x2
-#define MODE_COMBINED MODE_AF_XDP | MODE_XDP
-
 #define DEFAULT_BIND_FLAGS (XDP_USE_NEED_WAKEUP)
 
 #define POLL_TIMEOUT_MS 1000
@@ -192,8 +187,8 @@ static void enter_xsks_into_map(struct bpf_object *obj)
 	for (int if_idx = 0; if_idx < conf.num_interfaces; if_idx++) {
 		for (int wrk_idx = 0; wrk_idx < conf.workers; wrk_idx++) {
 			int fd = xsk_socket__fd(workers[wrk_idx].xsks[if_idx].xsk);
-			// uint32_t key = ifindexes[if_idx] << 16 | wrk_idx;
-			int key = 0;
+			/* TODO: support multiple workers with multiple iterfaces */
+			int key = wrk_idx;
 
 			if (bpf_map_update_elem(xsks_map, &key, &fd, 0)) {
 				fprintf(stderr, "ERROR: bpf_map_update_elem %d\n", key);
