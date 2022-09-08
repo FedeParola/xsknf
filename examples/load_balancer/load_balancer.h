@@ -4,6 +4,10 @@
 #define MAX_BACKENDS MAX_SERVICES * 128
 #define MAX_SESSIONS 2*1000000
 
+struct global_data {
+	int passthrough_queues;
+};
+
 struct service_id {
 	uint32_t vaddr;
 	uint16_t vport;

@@ -9,17 +9,21 @@ curdir = os.path.dirname(__file__)
 TESTER             = 'cube1@130.192.225.61'
 IFNAME             = 'ens1f0'
 MOONGEN_PATH       = '~/Federico/MoonGen/build/MoonGen'
-APP_NAME           = 'checksummer'
+APP_NAME           = 'lbfw'
 APP_PATH           = f'{curdir}/../examples/{APP_NAME}/{APP_NAME}'
+ACL_GEN_PATH       = f'{curdir}/scripts/gen-acl.py'
+SERVICES_GEN_PATH  = f'{curdir}/scripts/gen-services.py'
 PKTGEN_SCRIPT_PATH = '~/Federico/MoonGen/examples/gen-traffic.lua'
-RES_FILENAME       = 'res-drop-cpu.csv'
+RES_FILENAME       = 'res-mixed-lbfw.csv'
 RUNS               = 5
 RETRIES            = 10
 TRIAL_TIME         = 10  # Seconds of a single test trial
 FINAL_TRIAL_TIME   = 30
 TESTS_GAP          = 5   # Seconds of gap between two tests
-ITERATIONS         = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-MODES              = ['xdp', 'af_xdp-bp', 'combined-poll']
+DROP_SHARES        = [0, 25, 50, 75, 100]
+ACL_SIZE           = 1000
+SESSIONS           = 10000
+MODES              = ['xdp', 'af_xdp-bp', 'combined-bp']
 FLAGS              = {
                       'xdp': ['-M', 'XDP'],
                       'af_xdp': [],
@@ -29,7 +33,7 @@ FLAGS              = {
                       'combined-bp': ['-M', 'COMBINED', '-B'],
                       'combined-poll': ['-M', 'COMBINED', '-p']
                      }
-MAX_TARGET         = 10000
+MAX_TARGET         = 5000
 TARGET_STEP        = 50
 MAX_LOSS           = 0.001
 PERF_COUNTERS      = ['LLC-loads', 'LLC-load-misses', 'LLC-stores',
@@ -58,12 +62,20 @@ def get_pktgen_stats():
     return ret[0], int(ret[1])
 
 out = open(RES_FILENAME, 'w')
-out.write("run,iterations,mode,throughput,target,llc-loads,llc-load-misses,llc-store,llc-store-misses,user,system,softirq,verified\n")
+out.write("run,drop-share,mode,throughput,target,llc-loads,llc-load-misses,llc-store,llc-store-misses,user,system,softirq,verified\n")
+
+cmd = [ACL_GEN_PATH, str(ACL_SIZE)]
+subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL)
+
+cmd = [SERVICES_GEN_PATH, '1', '10']
+subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL)
 
 for run in range(RUNS):
-    for iter in ITERATIONS:
+    for drop_share in DROP_SHARES:
         for mode in MODES:
-            print(f'Run {run}: measuring {iter} iterations in mode {mode}...')
+            print(f'Run {run}: measuring drop share {drop_share} in mode {mode}...')
 
             if mode == 'af_xdp-bp' or mode == 'combined-bp':
                 # Enable busy polling
@@ -77,12 +89,9 @@ for run in range(RUNS):
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             cmd = ['taskset', '1', 'sudo', APP_PATH, '-i', IFNAME] \
-                    + FLAGS[mode] + ['--', '-q', '-i', str(iter), '-c', 'DROP']
+                    + FLAGS[mode] + ['--', '-q', '-p', str(SESSIONS)]
             app = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL)
-
-            # Wait for the array table to be filled
-            time.sleep(2)
+                    stderr=subprocess.DEVNULL)
 
             max_t = MAX_TARGET
             former_rx_pkts = 0
@@ -101,7 +110,9 @@ for run in range(RUNS):
 
                     cmd = ['ssh', TESTER, 'sudo', MOONGEN_PATH,
                             PKTGEN_SCRIPT_PATH, '0', '0', '-c', '6', '-o',
-                            'tmp.csv', '-r', str(curr_t), '-t', str(TRIAL_TIME)]
+                            'tmp.csv', '-r', str(curr_t), '-t', str(TRIAL_TIME),
+                            '-f', str(SESSIONS), '-g', str(ACL_SIZE), '-d',
+                            str(drop_share/100)]
                     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)      
 
@@ -126,7 +137,8 @@ for run in range(RUNS):
 
                 cmd = ['ssh', TESTER, 'sudo', MOONGEN_PATH, PKTGEN_SCRIPT_PATH,
                         '0', '0', '-c', '6', '-o', 'tmp.csv', '-r', str(best_t),
-                        '-t', str(FINAL_TRIAL_TIME)]
+                        '-t', str(FINAL_TRIAL_TIME), '-f', str(SESSIONS), '-g',
+                        str(ACL_SIZE), '-d', str(drop_share/100)]
                 pktgen = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL)
 
@@ -175,7 +187,7 @@ for run in range(RUNS):
             cmd = ['sudo', 'killall', APP_NAME]
             subprocess.run(cmd, check=True)
 
-            out.write(f'{run},{iter},{mode},{best_r},{best_t},{loads},{load_misses},{stores},{store_misses},{user},{system},{softirq},{verified}\n')
+            out.write(f'{run},{drop_share},{mode},{best_r},{best_t},{loads},{load_misses},{stores},{store_misses},{user},{system},{softirq},{verified}\n')
             out.flush()
 
             if mode == 'af_xdp-bp' or mode == 'combined-bp':

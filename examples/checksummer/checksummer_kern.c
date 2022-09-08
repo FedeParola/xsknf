@@ -7,7 +7,7 @@
 #include <bpf/bpf_helpers.h>
 
 /* 
- * Including the common/statistcis.h header creates problems with other
+ * Including the common/statistics.h header creates problems with other
  * inclusions
  */
 struct xdp_cpu_stats {

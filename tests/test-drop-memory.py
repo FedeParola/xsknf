@@ -1,14 +1,17 @@
 #!/usr/bin/python3
 
+import os
 import subprocess
 import time
+
+curdir = os.path.dirname(__file__)
 
 TESTER             = 'cube1@130.192.225.61'
 IFNAME             = 'ens1f0'
 MOONGEN_PATH       = '~/Federico/MoonGen/build/MoonGen'
 APP_NAME           = 'test_memory'
-APP_PATH           = f'/home/polycube/src/xsknf/examples/{APP_NAME}/{APP_NAME}'
-PKTGEN_SCRIPT_PATH = '/home/cube1/Federico/MoonGen/examples/test-rss.lua'
+APP_PATH           = f'{curdir}/../examples/{APP_NAME}/{APP_NAME}'
+PKTGEN_SCRIPT_PATH = '~/Federico/MoonGen/examples/gen-traffic.lua'
 RES_FILENAME       = 'res-drop-memory.csv'
 RUNS               = 5
 RETRIES            = 10

@@ -355,7 +355,8 @@ static void del_clsact_qdiscs()
 	mnl_socket_close(nl);
 }
 
-static void load_ebpf_programs(char *path, struct bpf_object **obj)
+static void load_ebpf_programs(char *path, struct bpf_object **obj,
+		char *xdp_progname, char *tc_progname)
 {
 	struct bpf_program *xdp_prog, *tc_prog;
 	int fd;
@@ -368,10 +369,9 @@ static void load_ebpf_programs(char *path, struct bpf_object **obj)
 		exit(EXIT_FAILURE);
 	}
 
-	xdp_prog = bpf_object__find_program_by_name(*obj, "handle_xdp");
-	tc_prog = bpf_object__find_program_by_name(*obj, "handle_tc");
+	xdp_prog = bpf_object__find_program_by_name(*obj, xdp_progname);
 	if (!xdp_prog) {
-		fprintf(stderr, "ERROR: no xdp program found\n");
+		fprintf(stderr, "ERROR: no '%s' xdp program found\n", xdp_progname);
 		exit(EXIT_FAILURE);
 	}
 
@@ -384,7 +384,12 @@ static void load_ebpf_programs(char *path, struct bpf_object **obj)
 		}
 	}
 
-	if (tc_prog) {
+	if (tc_progname[0]) {
+		tc_prog = bpf_object__find_program_by_name(*obj, tc_progname);
+		if (!xdp_prog) {
+			fprintf(stderr, "ERROR: no '%s' tc program found\n", tc_progname);
+			exit(EXIT_FAILURE);
+		}
 		load_tc_programs(bpf_program__fd(tc_prog));
 		egress_ebpf_program = 1;
 	}
@@ -774,7 +779,9 @@ int xsknf_parse_args(int argc, char **argv, struct xsknf_config *config)
 	int option_index, c;
 
 	memcpy(config, &default_conf, sizeof(struct xsknf_config));
-	sprintf(config->xdp_filename, "%s_kern.o", argv[0]);
+	sprintf(config->ebpf_filename, "%s_kern.o", argv[0]);
+	sprintf(config->xdp_progname, "handle_xdp");
+	config->tc_progname[0] = 0;
 
 	for (;;) {
 		c = getopt_long(argc, argv, "i:pSf:ub:BM:w:", long_options,
@@ -990,7 +997,8 @@ int xsknf_init(struct xsknf_config *config, struct bpf_object **bpf_obj)
 	
 	if (conf.working_mode & MODE_XDP) {
 		printf("Loading custom eBPF programs...\n");
-		load_ebpf_programs(conf.xdp_filename, &obj);
+		load_ebpf_programs(conf.ebpf_filename, &obj, conf.xdp_progname,
+				conf.tc_progname);
 		*bpf_obj = obj;
 
 		if (conf.working_mode & MODE_AF_XDP) {
@@ -1025,13 +1033,11 @@ int xsknf_cleanup()
 		free(workers);
 	}
 
-	if (conf.working_mode & MODE_XDP) {
-		for (int i = 0; i < conf.num_interfaces; i++) {
-			bpf_set_link_xdp_fd(ifindexes[i], -1, conf.xdp_flags);
-		}
-		if (egress_ebpf_program) {
-			del_clsact_qdiscs();
-		}
+	for (int i = 0; i < conf.num_interfaces; i++) {
+		bpf_set_link_xdp_fd(ifindexes[i], -1, conf.xdp_flags);
+	}
+	if (egress_ebpf_program) {
+		del_clsact_qdiscs();
 	}
 
 	free(ifindexes);

@@ -1,15 +1,18 @@
 #!/usr/bin/python3
 
+import os
 import subprocess
 import time
+
+curdir = os.path.dirname(__file__)
 
 TESTER             = 'cube1@130.192.225.61'
 IFNAME             = 'ens1f0'
 MOONGEN_PATH       = '~/Federico/MoonGen/build/MoonGen'
 APP_NAME           = 'firewall'
-APP_PATH           = f'/home/polycube/src/af_xdp-tests/examples/{APP_NAME}/{APP_NAME}'
-ACL_GEN_PATH       = f'/home/polycube/src/af_xdp-tests/examples/{APP_NAME}/gen-acl.py'
-PKTGEN_SCRIPT_PATH = '/home/cube1/Federico/MoonGen/examples/test-rss.lua'
+APP_PATH           = f'{curdir}/../examples/{APP_NAME}/{APP_NAME}'
+ACL_GEN_PATH       = f'{curdir}/scripts/gen-acl.py'
+PKTGEN_SCRIPT_PATH = '~/Federico/MoonGen/examples/gen-traffic.lua'
 RES_FILENAME       = 'res-drop-fw.csv'
 RUNS               = 5
 RETRIES            = 10

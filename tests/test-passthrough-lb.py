@@ -9,16 +9,16 @@ curdir = os.path.dirname(__file__)
 TESTER             = 'cube1@130.192.225.61'
 IFNAME             = 'ens1f0'
 MOONGEN_PATH       = '~/Federico/MoonGen/build/MoonGen'
-APP_NAME           = 'checksummer'
+APP_NAME           = 'load_balancer'
 APP_PATH           = f'{curdir}/../examples/{APP_NAME}/{APP_NAME}'
 PKTGEN_SCRIPT_PATH = '~/Federico/MoonGen/examples/gen-traffic.lua'
-RES_FILENAME       = 'res-drop-cpu.csv'
+RES_FILENAME       = 'res-passthrough-lb.csv'
 RUNS               = 5
 RETRIES            = 10
 TRIAL_TIME         = 10  # Seconds of a single test trial
 FINAL_TRIAL_TIME   = 30
 TESTS_GAP          = 5   # Seconds of gap between two tests
-ITERATIONS         = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+SESSIONS_COUNTS    = [1, 10, 100, 1000, 10000, 100000, 1000000]
 MODES              = ['xdp', 'af_xdp-bp', 'combined-poll']
 FLAGS              = {
                       'xdp': ['-M', 'XDP'],
@@ -29,7 +29,7 @@ FLAGS              = {
                       'combined-bp': ['-M', 'COMBINED', '-B'],
                       'combined-poll': ['-M', 'COMBINED', '-p']
                      }
-MAX_TARGET         = 10000
+MAX_TARGET         = 5000
 TARGET_STEP        = 50
 MAX_LOSS           = 0.001
 PERF_COUNTERS      = ['LLC-loads', 'LLC-load-misses', 'LLC-stores',
@@ -39,15 +39,6 @@ PERF_TIME          = 10  # Seconds
 def round_target(target):
     return int(target / TARGET_STEP) * TARGET_STEP
 
-def get_rcvd_pkts():
-    cmd = ['pidof', APP_NAME]
-    ret = subprocess.run(cmd, capture_output=True, text=True)
-    cmd = ['sudo', 'kill', '-SIGUSR1', str(int(ret.stdout))]
-    ret = subprocess.run(cmd)
-    time.sleep(1)
-    ret = int(open("stats.txt", "r").readline())
-    return ret
-
 def get_pktgen_stats():
     cmd = ['scp', f'{TESTER}:./tmp.csv' , '.']
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL,
@@ -55,15 +46,15 @@ def get_pktgen_stats():
     f = open("tmp.csv", "r")
     ret = f.read().splitlines()[1].split(';')
     f.close()
-    return ret[0], int(ret[1])
+    return ret[2], int(ret[1]), int(ret[3])
 
 out = open(RES_FILENAME, 'w')
-out.write("run,iterations,mode,throughput,target,llc-loads,llc-load-misses,llc-store,llc-store-misses,user,system,softirq,verified\n")
+out.write("run,sessions,mode,throughput,target,llc-loads,llc-load-misses,llc-store,llc-store-misses,user,system,softirq,verified\n")
 
 for run in range(RUNS):
-    for iter in ITERATIONS:
+    for sessions in SESSIONS_COUNTS:
         for mode in MODES:
-            print(f'Run {run}: measuring {iter} iterations in mode {mode}...')
+            print(f'Run {run}: measuring {sessions} sessions in mode {mode}...')
 
             if mode == 'af_xdp-bp' or mode == 'combined-bp':
                 # Enable busy polling
@@ -77,20 +68,17 @@ for run in range(RUNS):
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             cmd = ['taskset', '1', 'sudo', APP_PATH, '-i', IFNAME] \
-                    + FLAGS[mode] + ['--', '-q', '-i', str(iter), '-c', 'DROP']
+                    + FLAGS[mode] + ['--', '-q', '-p', str(sessions)]
             app = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL)
+                    stderr=subprocess.DEVNULL)
 
-            # Wait for the array table to be filled
-            time.sleep(2)
+            # Wait for the session table to be filled
+            time.sleep(max(2, int(sessions / 100000)))
 
             max_t = MAX_TARGET
-            former_rx_pkts = 0
-            total_rx_pkts = 0
-
             for retry in range(RETRIES):
                 print(f'Trial {retry}')
-        
+
                 min_t = 0
                 curr_t = max_t
                 best_t = 0
@@ -101,14 +89,12 @@ for run in range(RUNS):
 
                     cmd = ['ssh', TESTER, 'sudo', MOONGEN_PATH,
                             PKTGEN_SCRIPT_PATH, '0', '0', '-c', '6', '-o',
-                            'tmp.csv', '-r', str(curr_t), '-t', str(TRIAL_TIME)]
+                            'tmp.csv', '-r', str(curr_t), '-t', str(TRIAL_TIME),
+                            '-f', str(sessions)]
                     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)      
 
-                    rate, tx_pkts = get_pktgen_stats()
-                    total_rx_pkts = get_rcvd_pkts()
-                    rx_pkts = total_rx_pkts - former_rx_pkts
-                    former_rx_pkts = total_rx_pkts
+                    rate, tx_pkts, rx_pkts = get_pktgen_stats()
                     loss = (tx_pkts - rx_pkts) / tx_pkts
                     print(f'Sent {tx_pkts}, received {rx_pkts}, rate {rate} Mpps, loss {(loss*100):.2f}%')
 
@@ -126,7 +112,7 @@ for run in range(RUNS):
 
                 cmd = ['ssh', TESTER, 'sudo', MOONGEN_PATH, PKTGEN_SCRIPT_PATH,
                         '0', '0', '-c', '6', '-o', 'tmp.csv', '-r', str(best_t),
-                        '-t', str(FINAL_TRIAL_TIME)]
+                        '-t', str(FINAL_TRIAL_TIME), '-f', str(sessions)]
                 pktgen = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL)
 
@@ -154,15 +140,12 @@ for run in range(RUNS):
 
                 pktgen.wait()
 
-                rate, tx_pkts = get_pktgen_stats()
-                total_rx_pkts = get_rcvd_pkts()
-                rx_pkts = total_rx_pkts - former_rx_pkts
-                former_rx_pkts = total_rx_pkts
+                rate, tx_pkts, rx_pkts = get_pktgen_stats()
                 loss = (tx_pkts - rx_pkts) / tx_pkts
                 if loss <= MAX_LOSS:
-                        verified = True
+                    verified = True
                 else:
-                        verified = False
+                    verified = False
 
                 print(f'Target {best_t} Mbps, throughput: {best_r} Mpps, {"VERIFIED" if verified else f"NOT VERIFIED (lost {loss*100:.2f}%)"}, User {user:.2f}%, System {system:.2f}%, SoftIRQ {softirq:.2f}%\n')
 
@@ -175,7 +158,7 @@ for run in range(RUNS):
             cmd = ['sudo', 'killall', APP_NAME]
             subprocess.run(cmd, check=True)
 
-            out.write(f'{run},{iter},{mode},{best_r},{best_t},{loads},{load_misses},{stores},{store_misses},{user},{system},{softirq},{verified}\n')
+            out.write(f'{run},{sessions},{mode},{best_r},{best_t},{loads},{load_misses},{stores},{store_misses},{user},{system},{softirq},{verified}\n')
             out.flush()
 
             if mode == 'af_xdp-bp' or mode == 'combined-bp':

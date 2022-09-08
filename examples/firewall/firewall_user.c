@@ -17,17 +17,12 @@
 #include <signal.h>
 #include <unistd.h>
 #include <xsknf.h>
-#ifdef MONITOR_LOOKUP_TIME
-#include <time.h>
-#endif
 
 static int benchmark_done;
 static int opt_quiet;
 static int opt_extra_stats;
 static int opt_app_stats;
-#ifdef MONITOR_LOOKUP_TIME
-volatile unsigned long lookup_time = 0;
-#endif
+static char *opt_acl_path = "./acl.txt";
 
 struct bpf_object *obj;
 struct xsknf_config config;
@@ -99,7 +94,7 @@ static void init_acl(const char *acl_path)
 
 		if (config.working_mode == MODE_AF_XDP) {
 			if (khashmap_update_elem(&acl, &sid, &act, 0)) {
-				fprintf(stderr, "Error adding elemetn to hash map\n");
+				fprintf(stderr, "Error adding element to hash map\n");
 				exit(EXIT_FAILURE);
 			}
 		} else {
@@ -182,18 +177,7 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	key.daddr = iph->daddr;
 	key.proto = iph->protocol;
 
-	int *action = NULL;
-#ifdef MONITOR_LOOKUP_TIME
-    struct timespec tp_before, tp_after;
-    clock_gettime(CLOCK_MONOTONIC, &tp_before);
-#endif
-	action = khashmap_lookup_elem(&acl, &key);
-#ifdef MONITOR_LOOKUP_TIME
-    clock_gettime(CLOCK_MONOTONIC, &tp_after);
-    lookup_time += tp_after.tv_nsec + tp_after.tv_sec * 1000000000
-			- (tp_before.tv_nsec + tp_before.tv_sec * 1000000000);
-#endif
-
+	int *action = khashmap_lookup_elem(&acl, &key);
 	if (action) {
 		return *action;
 	} else {
@@ -202,6 +186,7 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 }
 
 static struct option long_options[] = {
+	{"acl-path", required_argument, 0, 'f'},
 	{"quiet", no_argument, 0, 'q'},
 	{"extra-stats", no_argument, 0, 'x'},
 	{"app-stats", no_argument, 0, 'a'},
@@ -213,6 +198,7 @@ static void usage(const char *prog)
 	const char *str =
 		"  Usage: %s [XSKNF_OPTIONS] -- [APP_OPTIONS]\n"
 		"  App options:\n"
+		"  -f, --acl-path	ACL file path (default ./acl.txt)\n"
 		"  -q, --quiet		Do not display any stats.\n"
 		"  -x, --extra-stats	Display extra statistics.\n"
 		"  -a, --app-stats	Display application (syscall) statistics.\n"
@@ -227,11 +213,14 @@ static void parse_command_line(int argc, char **argv, char *app_path)
 	int option_index, c;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "qxa", long_options, &option_index);
+		c = getopt_long(argc, argv, "qxaf:", long_options, &option_index);
 		if (c == -1)
 			break;
 
 		switch (c) {
+		case 'f':
+			opt_acl_path = optarg;
+			break;
 		case 'q':
 			opt_quiet = 1;
 			break;
@@ -271,7 +260,7 @@ int main(int argc, char **argv)
 
 	setlocale(LC_ALL, "");
 
-	init_acl("./acl.txt");
+	init_acl(opt_acl_path);
 
 	xsknf_start_workers();
 
@@ -281,67 +270,6 @@ int main(int argc, char **argv)
 		sleep(1);
 		if (!opt_quiet) {
 			dump_stats(config, obj, opt_extra_stats, opt_app_stats);
-
-#ifdef MONITOR_LOOKUP_TIME
-			unsigned long rx_npkts = 0;
-
-			if (config.working_mode == MODE_AF_XDP) {
-				struct xsknf_socket_stats stats;
-
-				for (int i = 0; i < config.workers; i++) {
-					for (int j = 0; j < config.num_interfaces; j++) {
-						xsknf_get_socket_stats(i, j, &stats);
-						rx_npkts += stats.rx_npkts;
-					}
-				}
-
-			} else {
-				unsigned int nr_cpus = libbpf_num_possible_cpus();
-				struct xdp_cpu_stats values[nr_cpus];
-				int i, map_fd, zero = 0;
-				struct bpf_map *map;
-
-				map = bpf_object__find_map_by_name(obj, "xdp_stats");
-				map_fd = bpf_map__fd(map);
-				if (map_fd < 0) {
-					fprintf(stderr, "ERROR: no xdp_stats map found: %s\n",
-						strerror(map_fd));
-						exit(EXIT_FAILURE);
-				}
-
-				if ((bpf_map_lookup_elem(map_fd, &zero, values)) != 0) {
-					fprintf(stderr,
-							"ERROR: bpf_map_lookup_elem failed key:0x%X\n",
-							zero);
-					exit(EXIT_FAILURE);
-				}
-
-				for (int i = 0; i < nr_cpus; i++) {
-					rx_npkts += values[i].rx_npkts;
-				}
-
-				map = bpf_object__find_map_by_name(obj, "lookup_time");
-				map_fd = bpf_map__fd(map);
-				if (map_fd < 0) {
-					fprintf(stderr, "ERROR: no lookup_time map found: %s\n",
-						strerror(map_fd));
-						exit(EXIT_FAILURE);
-				}
-
-				unsigned long xdp_lookup_time;
-				if ((bpf_map_lookup_elem(map_fd, &zero,
-						&xdp_lookup_time)) != 0) {
-					fprintf(stderr,
-							"ERR: bpf_map_lookup_elem failed key:0x%X\n", zero);
-					exit(EXIT_FAILURE);
-				}
-
-				lookup_time = xdp_lookup_time;
-			}
-
-			printf("Average lookup time %lu\n",
-						rx_npkts == 0 ? 0 : lookup_time / rx_npkts);
-#endif  /* MONITOR_LOOKUP_TIME */
 		}
 	}
 

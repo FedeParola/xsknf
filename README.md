@@ -46,4 +46,4 @@ TODO
 
 ## Paper
 
-For the tests of the paper *name_still_to_be_defined* please refer to the [tests](./tests) folder.
+For the tests of the paper *Comparing User Space and In-Kernel Packet Processing for Edge Data Centers* please refer to the [tests](./tests) folder.

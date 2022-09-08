@@ -25,13 +25,11 @@ XSKNF_C      := $(XSKNF_DIR)/xsknf.c
 XSKNF_O      := ${XSKNF_C:.c=.o}
 XSKNF_TARGET := $(XSKNF_DIR)/libxsknf.a
 
-EXAMPLES := drop_macswap/drop_macswap			\
-			firewall/firewall 					\
-			redirect_macswap/redirect_macswap	\
-			load_balancer/load_balancer			\
-			checksummer/checksummer				\
-			hybrid_macswap/hybrid_macswap		\
-			hybrid_lbfw/hybrid_lbfw				\
+EXAMPLES := macswap/macswap				\
+			firewall/firewall 			\
+			load_balancer/load_balancer	\
+			checksummer/checksummer		\
+			lbfw/lbfw					\
 			test_memory/test_memory
 EXAMPLES_DIR     := ./examples
 EXAMPLES_TARGETS := $(addprefix $(EXAMPLES_DIR)/,$(EXAMPLES))

@@ -9,7 +9,7 @@
 #include <bpf/bpf_helpers.h>
 
 /* 
- * Including the common/statistcis.h header creates problems with other
+ * Including the common/statistics.h header creates problems with other
  * inclusions
  */
 struct xdp_cpu_stats {
@@ -30,15 +30,6 @@ struct {
 	__uint(value_size, sizeof(int));
 	__uint(max_entries, 32);
 } xsks SEC(".maps");
-
-#ifdef MONITOR_LOOKUP_TIME
-struct {
-	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-	__type(key, int);
-	__type(value, unsigned long);
-	__uint(max_entries, 1);
-} lookup_time SEC(".maps");
-#endif
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -116,19 +107,7 @@ SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 	key.daddr = iph->daddr;
 	key.proto = iph->protocol;
 
-#ifdef MONITOR_LOOKUP_TIME
-	unsigned long before = bpf_ktime_get_ns();
-#endif
 	int *action = bpf_map_lookup_elem(&acl, &key);
-#ifdef MONITOR_LOOKUP_TIME
-    unsigned long elapsed = bpf_ktime_get_ns() - before;
-	unsigned long *tot_lookup = bpf_map_lookup_elem(&lookup_time, &zero);
-	if (!tot_lookup) {
-		return XDP_ABORTED;
-	}
-	*tot_lookup += elapsed;
-#endif
-
 	if (action) {
 		return *action;
 	} else {

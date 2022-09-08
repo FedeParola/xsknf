@@ -14,7 +14,7 @@ extern "C" {
 /* Application working modes */
 #define MODE_AF_XDP 0x1
 #define MODE_XDP 0x2
-#define MODE_COMBINED MODE_AF_XDP | MODE_XDP
+#define MODE_COMBINED (MODE_AF_XDP | MODE_XDP)
 
 /* 
  * Custom packet processing function defined by the user.
@@ -27,14 +27,16 @@ struct xsknf_config {
 	uint32_t bind_flags[XSKNF_MAX_INTERFACES];
 	unsigned num_interfaces;
 	unsigned workers;
-    unsigned working_mode;
-    uint32_t xdp_flags;
-    uint32_t batch_size;
-    int poll;
-    int unaligned_chunks;
-    int xsk_frame_size;
-    int busy_poll;
-	char xdp_filename[256];
+	unsigned working_mode;
+	uint32_t xdp_flags;
+	uint32_t batch_size;
+	int poll;
+	int unaligned_chunks;
+	int xsk_frame_size;
+	int busy_poll;
+	char ebpf_filename[256];
+	char xdp_progname[256];
+	char tc_progname[256];
 };
 
 struct xsknf_socket_stats {
