@@ -25,12 +25,12 @@ void inline swap_mac_addresses(void *data)
  */
 void inline swap_mac_addresses_v2(void *data)
 {
-    unsigned char *macs = data;
+	unsigned char *macs = data;
 	unsigned char tmp;
 
-    for (int i = 0; i < 6; i++) {
-        tmp = macs[i];
-        macs[i] = macs[6 + i];
-        macs[6 + i] = tmp;
-    }
+	for (int i = 0; i < 6; i++) {
+		tmp = macs[i];
+		macs[i] = macs[6 + i];
+		macs[6 + i] = tmp;
+	}
 }

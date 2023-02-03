@@ -105,7 +105,7 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	uint16_t csum = (uint16_t)csum_buffer + (uint16_t)(csum_buffer >> 16);
 	csum = ~csum;
 
-    udp->check = csum;
+	udp->check = csum;
 
 	return opt_action == ACTION_REDIRECT ?
 			(ingress_ifindex + 1) % config.num_interfaces : -1;

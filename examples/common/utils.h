@@ -4,7 +4,7 @@
 #include <xsknf.h>
 
 static void __exit_with_error(int error, const char *file, const char *func,
-			      int line)
+		int line)
 {
 	fprintf(stderr, "%s:%s:%i: errno: %d/\"%s\"\n", file, func,
 		line, error, strerror(error));

@@ -175,7 +175,7 @@ int main(int argc, char **argv)
 
 	xsknf_start_workers();
 
-    init_stats();
+	init_stats();
 
 	while (!benchmark_done) {
 		sleep(1);

@@ -58,18 +58,18 @@ struct khashmap active_sessions;
 
 static int ifname_to_app_idx(char *ifname)
 {
-    for (int i = 0; i < config.num_interfaces; i++) {
-        if (strcmp(ifname, config.interfaces[i]) == 0) {
-            return i;
-        }
-    }
+	for (int i = 0; i < config.num_interfaces; i++) {
+		if (strcmp(ifname, config.interfaces[i]) == 0) {
+			return i;
+		}
+	}
 
-    return -1;
+	return -1;
 }
 
 static int ifname_to_kern_idx(char *ifname)
 {
-    return if_nametoindex(ifname);
+	return if_nametoindex(ifname);
 }
 
 void store_session(struct session_id *sid, struct replace_info *rep, int mapfd)
@@ -97,9 +97,9 @@ void store_session(struct session_id *sid, struct replace_info *rep, int mapfd)
 static void load_services(const char *services_path)
 {
 	char srv_addr[IP_STRLEN], bkd_addr[IP_STRLEN], proto[PROTO_STRLEN],
-            ifname[IFNAME_STRLEN];
+			ifname[IFNAME_STRLEN];
 	unsigned srv_port, bkd_port;
-    uint8_t mac_addr[6];
+	uint8_t mac_addr[6];
 	FILE *f;
 	struct service_info *srv_info;
 	struct backend_entry *bkd_entry;
@@ -312,8 +312,8 @@ static void load_services(const char *services_path)
 			rep.addr = 0x020000c0; // 192.0.0.2
 			rep.port = htons(80);
 			uint8_t mac[6] = {0x0a, 0x00, 0x00, 0x00, 0x00, 0x01};
-            __builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
-            rep.ifindex = 0;
+			__builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
+			rep.ifindex = 0;
 			store_session(&sid, &rep, mapfd);
 			
 			/* Store the backward session */
@@ -324,8 +324,8 @@ static void load_services(const char *services_path)
 			rep.dir = DIR_TO_CLIENT;
 			rep.addr = 0x010000ac; // 172.0.0.1
 			rep.port = htons(80);
-            __builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
-            rep.ifindex = 0;
+			__builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
+			rep.ifindex = 0;
 			store_session(&sid, &rep, mapfd);
 		}
 
@@ -360,8 +360,8 @@ static void load_services(const char *services_path)
 			rep.addr = 0x0100a8c0;  /* 192.168.0.1 */
 			rep.port = htons(MEMCACHED_PORT);
 			uint8_t mac[6] = {0x0a, 0x00, 0x00, 0x00, 0x00, 0x00};
-            __builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
-            rep.ifindex = 1;
+			__builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
+			rep.ifindex = 1;
 			store_session(&sid, &rep, mapfd);
 			
 			/* Store the backward session */
@@ -373,8 +373,8 @@ static void load_services(const char *services_path)
 			rep.addr = 0x010000ac;  /* 172.0.0.1 */
 			rep.port = htons(MEMCACHED_PORT);
 			mac[5] = 0x02;  /* 0a:00:00:00:00:02 */
-            __builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
-            rep.ifindex = 0;
+			__builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
+			rep.ifindex = 0;
 			store_session(&sid, &rep, mapfd);
 		}
 
@@ -403,7 +403,7 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	}
 
 	if (eth->h_proto != htons(ETH_P_IP)) {
-        return config.num_interfaces > 1 ?
+		return config.num_interfaces > 1 ?
 				(ingress_ifindex + 1) % config.num_interfaces : -1;
 	}
 
@@ -441,7 +441,7 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 		break;
 
 	default:
-        return config.num_interfaces > 1 ?
+		return config.num_interfaces > 1 ?
 				(ingress_ifindex + 1) % config.num_interfaces : -1;
 	}
 
@@ -452,11 +452,11 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	sid.sport = *sport;
 	sid.dport = *dport;
 
-    /* Used for checksum update before forward */
+	/* Used for checksum update before forward */
 	uint32_t old_addr, new_addr;
 	uint16_t old_port, new_port;
 
-    unsigned output = -1;
+	unsigned output = -1;
 
 	/* Look for known sessions */
 	struct replace_info *rep = khashmap_lookup_elem(&active_sessions, &sid);
@@ -473,7 +473,7 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	struct service_info *srvinfo = khashmap_lookup_elem(&services, &srvid);
 	if (!srvinfo) {
 		/* Destination is not a virtual service */
-        return config.num_interfaces > 1 ?
+		return config.num_interfaces > 1 ?
 				(ingress_ifindex + 1) % config.num_interfaces : -1;
 	}
 
@@ -492,9 +492,9 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	fwd_rep.dir = DIR_TO_BACKEND;
 	fwd_rep.addr = bkdinfo->addr;
 	fwd_rep.port = bkdinfo->port;
-    __builtin_memcpy(fwd_rep.mac_addr, &bkdinfo->mac_addr,
+	__builtin_memcpy(fwd_rep.mac_addr, &bkdinfo->mac_addr,
 			sizeof(fwd_rep.mac_addr));
-    fwd_rep.ifindex = bkdinfo->ifindex;
+	fwd_rep.ifindex = bkdinfo->ifindex;
 	rep = &fwd_rep;
 	if (khashmap_update_elem(&active_sessions, &sid, &fwd_rep, 0)) {
 		fprintf(stderr, "ERROR: unable to add forward session to map\n");
@@ -506,8 +506,8 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	bwd_rep.dir = DIR_TO_CLIENT;
 	bwd_rep.addr = srvid.vaddr;
 	bwd_rep.port = srvid.vport;
-    __builtin_memcpy(&bwd_rep.mac_addr, &eth->h_source, sizeof(eth->h_source));
-    bwd_rep.ifindex = ingress_ifindex;
+	__builtin_memcpy(&bwd_rep.mac_addr, &eth->h_source, sizeof(eth->h_source));
+	bwd_rep.ifindex = ingress_ifindex;
 	sid.daddr = sid.saddr;
 	sid.dport = sid.sport;
 	sid.saddr = bkdinfo->addr;

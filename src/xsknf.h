@@ -40,7 +40,7 @@ struct xsknf_config {
 };
 
 struct xsknf_socket_stats {
-    /* Ring level stats */
+	/* Ring level stats */
 	unsigned long rx_npkts;
 	unsigned long tx_npkts;
 	unsigned long rx_dropped_npkts;
@@ -50,11 +50,11 @@ struct xsknf_socket_stats {
 	unsigned long rx_fill_empty_npkts;
 	unsigned long tx_empty_npkts;
 
-    /* Application level stats */
+	/* Application level stats */
 	unsigned long rx_empty_polls;
 	unsigned long fill_fail_polls;
 	unsigned long tx_wakeup_sendtos;
-    unsigned long tx_trigger_sendtos;
+	unsigned long tx_trigger_sendtos;
 	unsigned long opt_polls;
 };
 

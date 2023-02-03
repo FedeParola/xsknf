@@ -8,7 +8,7 @@
 #define NSTATS 13
 
 struct socket_stats_ps {
-    /* Ring level stats */
+	/* Ring level stats */
 	double rx_npkts;
 	double tx_npkts;
 	double rx_dropped_npkts;
@@ -18,11 +18,11 @@ struct socket_stats_ps {
 	double rx_fill_empty_npkts;
 	double tx_empty_npkts;
 
-    /* Application level stats */
+	/* Application level stats */
 	double rx_empty_polls;
 	double fill_fail_polls;
 	double tx_wakeup_sendtos;
-    double tx_trigger_sendtos;
+	double tx_trigger_sendtos;
 	double opt_polls;
 };
 
@@ -34,8 +34,8 @@ struct xdp_cpu_stats old_xdp_stats[XSKNF_MAX_WORKERS];
 unsigned long old_total_xdp = 0;
 
 static void compute_stats_per_second(struct xsknf_socket_stats *current,
-        struct xsknf_socket_stats *prev, long dt,
-        struct socket_stats_ps *stats_ps)
+		struct xsknf_socket_stats *prev, long dt,
+		struct socket_stats_ps *stats_ps)
 {
 	long *curr_arr = (long *)current, *prev_arr = (long *)prev;
 	double *stats_ps_arr = (double *)stats_ps;
@@ -46,10 +46,10 @@ static void compute_stats_per_second(struct xsknf_socket_stats *current,
 }
 
 static void acc_stats(struct xsknf_socket_stats *acc,
-        struct xsknf_socket_stats *stats)
+		struct xsknf_socket_stats *stats)
 {
 	unsigned long *acc_arr = (unsigned long*)acc,
-            *stats_arr = (unsigned long*)stats;
+			*stats_arr = (unsigned long*)stats;
 
 	for (int i = 0; i < NSTATS; i++) {
 		acc_arr[i] += stats_arr[i];
@@ -57,7 +57,7 @@ static void acc_stats(struct xsknf_socket_stats *acc,
 }
 
 static void acc_stats_per_second(struct socket_stats_ps *acc,
-        struct socket_stats_ps *stats)
+		struct socket_stats_ps *stats)
 {
 	double *acc_arr = (double *)acc, *stats_arr = (double *)stats;
 
@@ -76,7 +76,7 @@ static unsigned long get_nsecs(void)
 
 static void print_socket_stats(struct xsknf_socket_stats *stats,
 		struct socket_stats_ps *stats_ps, unsigned long dt,
-        int extra_stats, int app_stats)
+		int extra_stats, int app_stats)
 {
 	char *fmt = "%-18s %'-14.0f %'-14lu\n";
 
@@ -107,7 +107,7 @@ static void print_socket_stats(struct xsknf_socket_stats *stats,
 				stats->fill_fail_polls);
 		printf(fmt, "tx wakeup sendtos", stats_ps->tx_wakeup_sendtos,
 				stats->tx_wakeup_sendtos);
-        printf(fmt, "tx trigger sendtos", stats_ps->tx_trigger_sendtos,
+		printf(fmt, "tx trigger sendtos", stats_ps->tx_trigger_sendtos,
 				stats->tx_trigger_sendtos);
 		printf(fmt, "opt polls", stats_ps->opt_polls,
 				stats->opt_polls);
@@ -116,12 +116,12 @@ static void print_socket_stats(struct xsknf_socket_stats *stats,
 
 void init_stats()
 {
-    start_time = get_nsecs();
-    prev_time = start_time;
+	start_time = get_nsecs();
+	prev_time = start_time;
 }
 
 void dump_stats(struct xsknf_config config, struct bpf_object *obj,
-        int extra_stats, int app_stats)
+		int extra_stats, int app_stats)
 {
 	unsigned long now = get_nsecs();
 	long dt = now - prev_time;
@@ -142,7 +142,7 @@ void dump_stats(struct xsknf_config config, struct bpf_object *obj,
 				printf("\n%-19s", buff);
 
 				print_socket_stats(&stats, &stats_ps, dt, extra_stats,
-                        app_stats);
+						app_stats);
 
 				memcpy(&old_socket_stats[i][j], &stats,
 						sizeof(struct xsknf_socket_stats));
@@ -159,9 +159,9 @@ void dump_stats(struct xsknf_config config, struct bpf_object *obj,
 	if (config.working_mode & MODE_XDP) {
 		unsigned int nr_cpus = libbpf_num_possible_cpus();
 		unsigned long total_xdp = 0;
-        double total_xdp_pps = 0;
+		double total_xdp_pps = 0;
 		struct xdp_cpu_stats values[nr_cpus];
-        uint64_t lookup_time;
+		uint64_t lookup_time;
 		int i, map_fd, zero = 0;
 		struct bpf_map *map;
 
@@ -204,15 +204,15 @@ void dump_stats(struct xsknf_config config, struct bpf_object *obj,
 		}
 
 		printf("\n%-18s %-14s %-14s %-14.2f\n", " TOTAL XDP", "pps", "pkts",
-		        dt / 1000000000.);
-        char *fmt = "%-18s %'-14.0f %'-14lu\n";
-        printf(fmt, "rx", total_xdp_pps,
-                total_xdp > 0 ? total_xdp : old_total_xdp);
-        printf(fmt, "tx", 0.0, 0);
+				dt / 1000000000.);
+		char *fmt = "%-18s %'-14.0f %'-14lu\n";
+		printf(fmt, "rx", total_xdp_pps,
+				total_xdp > 0 ? total_xdp : old_total_xdp);
+		printf(fmt, "tx", 0.0, 0);
 
-        if (total_xdp > 0) {
-            old_total_xdp = total_xdp;
-        }
+		if (total_xdp > 0) {
+			old_total_xdp = total_xdp;
+		}
 	}
 }
 

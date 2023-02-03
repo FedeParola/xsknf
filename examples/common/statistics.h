@@ -8,7 +8,7 @@ struct xdp_cpu_stats {
 
 void init_stats();
 void dump_stats(struct xsknf_config config, struct bpf_object *obj,
-        int extra_stats, int app_stats);
+		int extra_stats, int app_stats);
 
 /*
  * Write cumulative stats to file on SIGUSR1 reception.

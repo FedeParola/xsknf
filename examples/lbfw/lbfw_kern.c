@@ -212,11 +212,11 @@ SEC("xdp2") int handle_xdp(struct xdp_md *ctx)
 		return *action;
 	}
 
-    /* Used for checksum update before forwarding */
+	/* Used for checksum update before forwarding */
 	uint32_t old_addr, new_addr;
 	uint16_t old_port, new_port;
 
-    unsigned output = -1;
+	unsigned output = -1;
 
 	/* Look for known sessions */
 	struct replace_info *rep = bpf_map_lookup_elem(&active_sessions, &sid);
@@ -250,12 +250,12 @@ SEC("xdp2") int handle_xdp(struct xdp_md *ctx)
 
 	/* Store the forward session */
 	struct replace_info fwd_rep;
-    fwd_rep.dir = DIR_TO_BACKEND;
+	fwd_rep.dir = DIR_TO_BACKEND;
 	fwd_rep.addr = bkdinfo->addr;
 	fwd_rep.port = bkdinfo->port;
-    __builtin_memcpy(&fwd_rep.mac_addr, &bkdinfo->mac_addr,
-            sizeof(fwd_rep.mac_addr));
-    fwd_rep.ifindex = bkdinfo->ifindex;
+	__builtin_memcpy(&fwd_rep.mac_addr, &bkdinfo->mac_addr,
+			sizeof(fwd_rep.mac_addr));
+	fwd_rep.ifindex = bkdinfo->ifindex;
 	rep = &fwd_rep;
 	if (bpf_map_update_elem(&active_sessions, &sid, &fwd_rep, 0)) {
 		bpf_printk("ERROR: unable to add forward session to map");
@@ -267,8 +267,8 @@ SEC("xdp2") int handle_xdp(struct xdp_md *ctx)
 	bwd_rep.dir = DIR_TO_CLIENT;
 	bwd_rep.addr = srvid.vaddr;
 	bwd_rep.port = srvid.vport;
-    __builtin_memcpy(&bwd_rep.mac_addr, &eth->h_source, sizeof(eth->h_source));
-    bwd_rep.ifindex = ctx->ingress_ifindex;
+	__builtin_memcpy(&bwd_rep.mac_addr, &eth->h_source, sizeof(eth->h_source));
+	bwd_rep.ifindex = ctx->ingress_ifindex;
 	sid.daddr = sid.saddr;
 	sid.dport = sid.sport;
 	sid.saddr = bkdinfo->addr;
@@ -310,13 +310,13 @@ UPDATE:;
 	csum = csum_add(csum, new_port);
 	*l4check = csum_fold(csum);
 
-    if (output == ctx->ingress_ifindex) {
-        return XDP_TX;
-    } else {
-        // return bpf_redirect(output, 0);
+	if (output == ctx->ingress_ifindex) {
+		return XDP_TX;
+	} else {
+		// return bpf_redirect(output, 0);
 		/* Let kernel networking redirect the packet */
 		return XDP_PASS;
-    }
+	}
 }
 
 char _license[] SEC("license") = "GPL";

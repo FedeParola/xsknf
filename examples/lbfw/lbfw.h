@@ -23,8 +23,8 @@ struct backend_id {
 struct backend_info {
 	uint32_t addr;
 	uint16_t port;
-    uint8_t mac_addr[6];
-    uint16_t ifindex;
+	uint8_t mac_addr[6];
+	uint16_t ifindex;
 } __attribute__((packed));
 
 struct session_id {
@@ -44,8 +44,8 @@ struct replace_info {
 	enum direction dir;
 	uint32_t addr;
 	uint16_t port;
-    uint8_t mac_addr[6];
-    uint16_t ifindex;
+	uint8_t mac_addr[6];
+	uint16_t ifindex;
 } __attribute__((packed));
 
 static inline uint16_t csum_fold(uint32_t csum)

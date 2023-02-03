@@ -106,7 +106,7 @@ static int xsk_get_xdp_stats(int fd, struct xsknf_socket_stats *stats)
 }
 
 static void __exit_with_error(int error, const char *file, const char *func,
-			      int line)
+		int line)
 {
 	fprintf(stderr, "%s:%s:%i: errno: %d/\"%s\"\n", file, func,
 		line, error, strerror(error));
@@ -401,7 +401,7 @@ static void kick_tx(struct xsk_socket_info *xsk)
 
 	ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
 	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN ||
-	    errno == EBUSY || errno == ENETDOWN)
+		errno == EBUSY || errno == ENETDOWN)
 		return;
 	exit_with_error(errno);
 }
@@ -438,7 +438,7 @@ static inline void complete_tx(struct xsk_socket_info *xsks,
 	}
 
 	ndescs = (tx_xsk->outstanding_tx > conf.batch_size) ? conf.batch_size :
-		    tx_xsk->outstanding_tx;
+			tx_xsk->outstanding_tx;
 
 	/* Recycle completed tx frames */
 	sent = xsk_ring_cons__peek(&tx_xsk->cq, ndescs, &idx);
@@ -479,7 +479,7 @@ static void process_batch(struct xsk_socket_info *xsks, unsigned ifindex)
 {
 	struct xsk_socket_info *rx_xsk = &xsks[ifindex];
 	struct pkt_info to_drop[conf.batch_size],
-            to_tx[conf.num_interfaces][conf.batch_size];
+			to_tx[conf.num_interfaces][conf.batch_size];
 	/* These counters support a max batch size of 511 packets */
 	uint8_t ndrop = 0, ntx[XSKNF_MAX_INTERFACES] = {0};
 	unsigned int rcvd, i, j;
@@ -509,20 +509,20 @@ static void process_batch(struct xsk_socket_info *xsks, unsigned ifindex)
 		addr = xsk_umem__add_offset_to_addr(addr);
 		void *pkt = xsk_umem__get_data(rx_xsk->buffer, addr);
 
-        ret = xsknf_packet_processor(pkt, len, ifindex);
+		ret = xsknf_packet_processor(pkt, len, ifindex);
 		if (ret == -1) {
-            /* Enqueue to drop queue */
+			/* Enqueue to drop queue */
 			to_drop[ndrop].addr = orig;
 			to_drop[ndrop++].len = len;
 		} else {
-            /* Enqueue to TX queue of the target dev */
+			/* Enqueue to TX queue of the target dev */
 			to_tx[ret][ntx[ret]].addr = orig;
 			to_tx[ret][ntx[ret]++].len = len;
 		}
 	}
 
 	xsk_ring_cons__release(&rx_xsk->rx, rcvd);
-    rx_xsk->stats.rx_npkts += rcvd;
+	rx_xsk->stats.rx_npkts += rcvd;
 
 	/*
 	 * Put frames of dropped packets back in the fill queue of the receiving
@@ -579,7 +579,7 @@ static void process_batch(struct xsk_socket_info *xsks, unsigned ifindex)
 			}
 
 			xsk_ring_prod__submit(&xsks[i].tx, ntx[i]);
-        	xsks[i].outstanding_tx += ntx[i];
+			xsks[i].outstanding_tx += ntx[i];
 		}
 	}
 }
@@ -604,14 +604,14 @@ static inline void complete_tx_1if(struct xsk_socket_info *xsk)
 	}
 
 	ndescs = (xsk->outstanding_tx > conf.batch_size) ? conf.batch_size :
-		    xsk->outstanding_tx;
+			xsk->outstanding_tx;
 
 	/* Recycle completed tx frames */
 	sent = xsk_ring_cons__peek(&xsk->cq, ndescs, &idx_cq);
 	if (sent > 0) {
 		xsk->stats.tx_npkts += sent;
 
-        ret = xsk_ring_prod__reserve(&xsk->fq, sent, &idx_fq);
+		ret = xsk_ring_prod__reserve(&xsk->fq, sent, &idx_fq);
 		if (ret != sent) {
 			/* (0 < ret < sent) should never happen */
 			exit_with_error(-ret);
@@ -659,20 +659,20 @@ static void process_batch_1if(struct xsk_socket_info *xsk)
 		addr = xsk_umem__add_offset_to_addr(addr);
 		void *pkt = xsk_umem__get_data(xsk->buffer, addr);
 
-        ret = xsknf_packet_processor(pkt, len, 0);
+		ret = xsknf_packet_processor(pkt, len, 0);
 		if (ret == -1) {
-            /* Enqueue to drop queue */
+			/* Enqueue to drop queue */
 			to_drop[ndrop].addr = orig;
 			to_drop[ndrop++].len = len;
 		} else {
-            /* Enqueue to TX queue of the dev */
+			/* Enqueue to TX queue of the dev */
 			to_tx[ntx].addr = orig;
 			to_tx[ntx++].len = len;
 		}
 	}
 
 	xsk_ring_cons__release(&xsk->rx, rcvd);
-    xsk->stats.rx_npkts += rcvd;
+	xsk->stats.rx_npkts += rcvd;
 
 	/* Put frames of dropped packets back in the fill queue */
 	if (ndrop) {
@@ -854,17 +854,17 @@ int xsknf_parse_args(int argc, char **argv, struct xsknf_config *config)
 		}
 	}
 
-    if (config->num_interfaces == 0) {
-        fprintf(stderr, "ERROR: at least one interface in required\n");
-        usage();
-    }
+	if (config->num_interfaces == 0) {
+		fprintf(stderr, "ERROR: at least one interface in required\n");
+		usage();
+	}
 
 	if (!(config->xdp_flags & XDP_FLAGS_SKB_MODE)) {
 		config->xdp_flags |= XDP_FLAGS_DRV_MODE;
 	}
 
 	if ((config->xsk_frame_size & (config->xsk_frame_size - 1)) &&
-	    !config->unaligned_chunks) {
+		!config->unaligned_chunks) {
 		fprintf(stderr, "--frame-size=%d is not a power of two\n",
 			config->xsk_frame_size);
 		usage();

@@ -143,18 +143,18 @@ static void init_acl(const char *acl_path)
 
 static int ifname_to_app_idx(char *ifname)
 {
-    for (int i = 0; i < config.num_interfaces; i++) {
-        if (strcmp(ifname, config.interfaces[i]) == 0) {
-            return i;
-        }
-    }
+	for (int i = 0; i < config.num_interfaces; i++) {
+		if (strcmp(ifname, config.interfaces[i]) == 0) {
+			return i;
+		}
+	}
 
-    return -1;
+	return -1;
 }
 
 static int ifname_to_kern_idx(char *ifname)
 {
-    return if_nametoindex(ifname);
+	return if_nametoindex(ifname);
 }
 
 void store_session(struct session_id *sid, struct replace_info *rep, int mapfd)
@@ -176,9 +176,9 @@ void store_session(struct session_id *sid, struct replace_info *rep, int mapfd)
 static void load_services(const char *services_path)
 {
 	char srv_addr[IP_STRLEN], bkd_addr[IP_STRLEN], proto[PROTO_STRLEN],
-            ifname[IFNAME_STRLEN];
+			ifname[IFNAME_STRLEN];
 	unsigned srv_port, bkd_port;
-    uint8_t mac_addr[6];
+	uint8_t mac_addr[6];
 	FILE *f;
 	struct service_info *srv_info;
 	struct backend_entry *bkd_entry;
@@ -202,7 +202,7 @@ static void load_services(const char *services_path)
 		exit_with_error(-1);
 	}
 
-    printf("Reading %u services and %u backends\n", nservices, nbackends);
+	printf("Reading %u services and %u backends\n", nservices, nbackends);
 
 	service_entries = malloc(sizeof(struct service_entry) * nservices);
 	backend_entries = malloc(sizeof(struct backend_entry) * nbackends);
@@ -211,14 +211,14 @@ static void load_services(const char *services_path)
 
 	i = 0;
 	while ((ret = fscanf(f, " %s %u %s %s %u"
-            " %2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx %s", srv_addr, &srv_port,
-            proto, bkd_addr, &bkd_port, &mac_addr[0], &mac_addr[1],
-            &mac_addr[2], &mac_addr[3], &mac_addr[4], &mac_addr[5], ifname))
-            != EOF) {		
-        if (ret < 12) {
-            fprintf(stderr, "ERROR: wrong services file format\n");
-		    exit(EXIT_FAILURE);
-        }
+			" %2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx %s", srv_addr, &srv_port,
+			proto, bkd_addr, &bkd_port, &mac_addr[0], &mac_addr[1],
+			&mac_addr[2], &mac_addr[3], &mac_addr[4], &mac_addr[5], ifname))
+			!= EOF) {		
+		if (ret < 12) {
+			fprintf(stderr, "ERROR: wrong services file format\n");
+			exit(EXIT_FAILURE);
+		}
 
 		bkd_entry = &backend_entries[i];
 		inet_aton(srv_addr, &addr);
@@ -236,8 +236,8 @@ static void load_services(const char *services_path)
 		inet_aton(bkd_addr, &addr);
 		bkd_entry->value.addr = addr.s_addr;
 		bkd_entry->value.port = htons(bkd_port);
-        __builtin_memcpy(&bkd_entry->value.mac_addr, mac_addr,
-                sizeof(mac_addr));
+		__builtin_memcpy(&bkd_entry->value.mac_addr, mac_addr,
+				sizeof(mac_addr));
 
 		if (config.working_mode == MODE_XDP) {
 			/* Traffic is redirected in XDP so use the kernel ifindex */
@@ -246,10 +246,10 @@ static void load_services(const char *services_path)
 			/* Traffic is redirected in AF_XDP so use the app ifindex */
 			ifindex = ifname_to_app_idx(ifname);
 		}
-        if (ifindex == -1) {
-            fprintf(stderr, "ERROR: Parsed unknown interface %s\n", ifname);
-            exit(EXIT_FAILURE);
-        }
+		if (ifindex == -1) {
+			fprintf(stderr, "ERROR: Parsed unknown interface %s\n", ifname);
+			exit(EXIT_FAILURE);
+		}
 		bkd_entry->value.ifindex = ifindex;
 		
 		srvindex = khashmap_lookup_elem(&srv_to_index, &bkd_entry->key.service);
@@ -375,8 +375,8 @@ static void load_services(const char *services_path)
 			rep.addr = 0x020000c0; // 192.0.0.2
 			rep.port = htons(80);
 			uint8_t mac[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
-            __builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
-            rep.ifindex = config.working_mode == MODE_AF_XDP ?
+			__builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
+			rep.ifindex = config.working_mode == MODE_AF_XDP ?
 					0 : ifname_to_kern_idx(config.interfaces[0]);
 			store_session(&sid, &rep, mapfd);
 			
@@ -388,8 +388,8 @@ static void load_services(const char *services_path)
 			rep.dir = DIR_TO_CLIENT;
 			rep.addr = 0x010000ac; // 172.0.0.1
 			rep.port = htons(80);
-            __builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
-            rep.ifindex = config.working_mode & MODE_AF_XDP ?
+			__builtin_memcpy(&rep.mac_addr, mac, sizeof(rep.mac_addr));
+			rep.ifindex = config.working_mode & MODE_AF_XDP ?
 					0 : ifname_to_kern_idx(config.interfaces[0]);
 			store_session(&sid, &rep, mapfd);
 		}
@@ -428,10 +428,10 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	}
 
 	if (eth->h_proto != htons(ETH_P_IP)) {
-        /* 
-         * Temporary, send the packet back on the interface. What to do? Can't
-         * rely on kernel stack
-         */
+		/* 
+		 * Temporary, send the packet back on the interface. What to do? Can't
+		 * rely on kernel stack
+		 */
 		return (ingress_ifindex + 1) % config.num_interfaces;
 	}
 
@@ -469,10 +469,10 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 		break;
 
 	default:
-        /* 
-         * Temporary, send the packet back on the interface. What to do? Can't
-         * rely on kernel stack
-         */
+		/* 
+		 * Temporary, send the packet back on the interface. What to do? Can't
+		 * rely on kernel stack
+		 */
 		return (ingress_ifindex + 1) % config.num_interfaces;
 	}
 
@@ -490,11 +490,11 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 		}
 	}
 
-    /* Used for checksum update before forward */
+	/* Used for checksum update before forward */
 	uint32_t old_addr, new_addr;
 	uint16_t old_port, new_port;
 
-    unsigned output = -1;
+	unsigned output = -1;
 
 	/* Look for known sessions */
 	struct replace_info *rep = khashmap_lookup_elem(&active_sessions, &sid);
@@ -511,10 +511,10 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	struct service_info *srvinfo = khashmap_lookup_elem(&services, &srvid);
 	if (!srvinfo) {
 		/* Destination is not a virtual service */
-        /* 
-         * Temporary, send the packet back on the interface. What to do? Can't
-         * rely on kernel stack
-         */
+		/* 
+		 * Temporary, send the packet back on the interface. What to do? Can't
+		 * rely on kernel stack
+		 */
 		return (ingress_ifindex + 1) % config.num_interfaces;
 	}
 
@@ -533,9 +533,9 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	fwd_rep.dir = DIR_TO_BACKEND;
 	fwd_rep.addr = bkdinfo->addr;
 	fwd_rep.port = bkdinfo->port;
-    __builtin_memcpy(fwd_rep.mac_addr, &bkdinfo->mac_addr,
+	__builtin_memcpy(fwd_rep.mac_addr, &bkdinfo->mac_addr,
 			sizeof(fwd_rep.mac_addr));
-    fwd_rep.ifindex = bkdinfo->ifindex;
+	fwd_rep.ifindex = bkdinfo->ifindex;
 	rep = &fwd_rep;
 	if (khashmap_update_elem(&active_sessions, &sid, &fwd_rep, 0)) {
 		fprintf(stderr, "ERROR: unable to add forward session to map\n");
@@ -547,8 +547,8 @@ int xsknf_packet_processor(void *pkt, unsigned len, unsigned ingress_ifindex)
 	bwd_rep.dir = DIR_TO_CLIENT;
 	bwd_rep.addr = srvid.vaddr;
 	bwd_rep.port = srvid.vport;
-    __builtin_memcpy(&bwd_rep.mac_addr, &eth->h_source, sizeof(eth->h_source));
-    bwd_rep.ifindex = ingress_ifindex;
+	__builtin_memcpy(&bwd_rep.mac_addr, &eth->h_source, sizeof(eth->h_source));
+	bwd_rep.ifindex = ingress_ifindex;
 	sid.daddr = sid.saddr;
 	sid.dport = sid.sport;
 	sid.saddr = bkdinfo->addr;
