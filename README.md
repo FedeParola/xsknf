@@ -35,11 +35,11 @@ The following arguments are currently supported by the library:
 -w  --workers=n     Number of packet processing workers
 ```
 
-The [redirect_macswap](./examples/redirect_macswap/) example provides a very basic example of how to use the library. For example it can be run in the follwing way:
+The [macswap](./examples/macswap/) example provides a very basic example of how to use the library. For example it can be run in the follwing way:
 ```
-sudo ./redirect_macswap -i ens1f0 -i ens1f1 -- -q
+sudo ./macswap -i ens1f0 -i ens1f1 -- -q
 ```
-This command tells XSKNF to use interfaces `ens1f0` and `ens1f1` (`-i`) and the application not to print perdiodic statistics (`-q`).
+This command tells XSKNF to use interfaces `ens1f0` and `ens1f1` (`-i`) and the application not to print periodic statistics (`-q`).
 
 ## Architecture
 TODO
