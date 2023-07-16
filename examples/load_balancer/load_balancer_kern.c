@@ -322,8 +322,6 @@ SEC("tc") int handle_tc(struct __sk_buff *ctx)
 	uint32_t old_addr, new_addr;
 	uint16_t old_port, new_port;
 
-	unsigned output = -1;
-
 	/* Look for known sessions */
 	struct replace_info *rep = bpf_map_lookup_elem(&active_sessions, &sid);
 	if (rep) {
@@ -398,7 +396,6 @@ UPDATE:;
 	new_port = rep->port;
 	__builtin_memcpy(&eth->h_source, &eth->h_dest, sizeof(eth->h_source));
 	__builtin_memcpy(&eth->h_dest, &rep->mac_addr, sizeof(eth->h_dest));
-	output = rep->ifindex;
 
 	/* Update ip checksum */
 	uint32_t csum = ~csum_unfold(iph->check);

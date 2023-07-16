@@ -94,7 +94,7 @@ SEC("xdp") int handle_xdp(struct xdp_md *ctx)
 		}
 
 		/* Compute checksum on udp header + payload */
-		uint16_t *payload = (void *)udp;
+		uint16_t * volatile payload = (void *)udp;
 		for (int j = 0; j < MAX_UDP_LENGTH; j += 2) {
 			if ((void *)(payload + 1) > data_end) {
 				break;

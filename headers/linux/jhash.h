@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-struct __una_uint32_t { uint32_t x; } __packed;
+struct __una_uint32_t { uint32_t x; } __attribute__((packed));
 
 static inline uint32_t __get_unaligned_cpuint32_t(const void *p)
 {
